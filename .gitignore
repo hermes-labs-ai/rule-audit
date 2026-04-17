@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# Type checking
+.mypy_cache/
+.pytype/
+.pyre/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Distribution
+MANIFEST
+
+# Docs build
+docs/_build/
+site/
+
+# Sample outputs (generated)
+samples/*.md
+samples/*.json
+
+# GTM strategy — not for public repo
+launch/cold-email-targets.md

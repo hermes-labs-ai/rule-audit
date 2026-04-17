@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rule-audit"
+version = "0.1.0"
+description = "Detect logical contradictions, gaps, and exploitable edge cases in AI system prompts"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Hermes Labs", email = "rolybosch96@gmail.com" }
+]
+keywords = [
+    "ai-safety", "llm", "prompt-engineering", "security", "audit",
+    "contradiction-detection", "red-teaming"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Security",
+]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/roli-lpci/rule-audit"
+Repository = "https://github.com/roli-lpci/rule-audit"
+Issues = "https://github.com/roli-lpci/rule-audit/issues"
+
+[project.scripts]
+rule-audit = "rule_audit.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "mypy>=1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rule_audit*"]
+
+[tool.setuptools.package-data]
+rule_audit = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["rule_audit"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 70

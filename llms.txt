@@ -1,0 +1,38 @@
+# rule-audit
+
+> Static analyzer for LLM system prompts. Finds logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and exploitable edge cases. Pure Python, zero LLM dependency, runs in milliseconds. Part of the Hermes Labs AI Audit Toolkit.
+
+rule-audit is `bandit` / `semgrep` for AI system prompts. Given a raw prompt string, it extracts normative rules, classifies their modality (MUST / MUST_NOT / SHOULD / MAY), scores absoluteness, and finds pairs that conflict. It generates concrete attack scenarios for each finding — the exact prompts an adversary would construct to exploit the flaw. No API keys, no network, no LLM calls.
+
+Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
+
+## Docs
+
+- [README](README.md): Install, quickstart, CLI and Python API usage, architecture overview.
+- [SPEC](SPEC.md): Full technical spec — parsing algorithm, contradiction detection methodology, severity calibration, data model, performance characteristics, known limitations.
+- [ROADMAP](ROADMAP.md): v0.1 (released), v0.2 (LLM-assisted + SARIF), v0.3 (auto-fix + HTML report), v1.0 (SaaS + GitHub Action).
+- [CLAUDE](CLAUDE.md): Project conventions for AI agents editing this repo.
+- [AGENTS](AGENTS.md): Public API surface, extension points (`_KEYWORD_CLUSTERS`, detector functions), conventions, don'ts.
+- [CHANGELOG](CHANGELOG.md): Release history.
+- [CONTRIBUTING](CONTRIBUTING.md): How to add detectors, clusters, severity rules. Tests required.
+
+## Examples
+
+- [samples/basic_assistant.txt](samples/basic_assistant.txt): Minimal helpful-assistant prompt with built-in contradictions.
+- [samples/code_assistant.txt](samples/code_assistant.txt): Code-assistant system prompt with permission/refusal conflicts.
+- [samples/content_moderator.txt](samples/content_moderator.txt): Moderation prompt with absolute-vs-nuanced tensions.
+- [samples/customer_support.txt](samples/customer_support.txt): Support prompt with policy-vs-empathy ambiguity.
+- [samples/enterprise_rag.txt](samples/enterprise_rag.txt): RAG-based enterprise prompt with retrieval-scope conflicts.
+- [benchmarks/README](benchmarks/README.md): Expected finding counts per sample, regression gate.
+
+## Related
+
+- [jailbreak-bench](https://github.com/roli-lpci/jailbreak-bench): Dynamic red-team suite that runs the attacks rule-audit predicts will succeed.
+- [colony-probe](https://github.com/roli-lpci/colony-probe): Extraction testing for deployed LLM endpoints.
+- [Hermes Labs](https://hermes-labs.ai): AI audit tooling, EU AI Act Article 15 support.
+
+## Optional
+
+- [LICENSE](LICENSE): MIT.
+- [SECURITY](SECURITY.md): Responsible disclosure — security@hermes-labs.ai.
+- [CITATION](CITATION.cff): How to cite.

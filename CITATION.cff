@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "rule-audit: Static analyzer for LLM system prompts"
+abstract: "Pure-Python static analysis tool for AI system prompts. Detects logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absoluteness issues. Runs in milliseconds, no LLM dependency, zero API calls."
+type: software
+authors:
+  - family-names: Bosch
+    given-names: Rolando
+    affiliation: Hermes Labs
+    email: rbosch@hermes-labs.ai
+version: 0.1.0
+date-released: 2026-04-17
+license: MIT
+repository-code: "https://github.com/roli-lpci/rule-audit"
+url: "https://hermes-labs.ai"
+keywords:
+  - static-analysis
+  - llm-safety
+  - system-prompt
+  - ai-audit
+  - linter
+  - eu-ai-act
