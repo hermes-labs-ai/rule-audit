@@ -18,6 +18,16 @@ from rule_audit.analyzer import analyze
 from rule_audit.parser import parse, parse_file, Rule
 from rule_audit.report import AuditReport
 
+__all__ = [
+    "audit",
+    "audit_file",
+    "analyze",
+    "parse",
+    "parse_file",
+    "Rule",
+    "AuditReport",
+]
+
 __version__ = "0.1.0"
 __all__ = ["audit", "audit_file", "AuditReport", "Rule", "__version__"]
 

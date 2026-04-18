@@ -39,6 +39,9 @@ pip install -e ".[dev]"
 ### CLI
 
 ```bash
+# Quick demo (no input needed — exercises every detector family)
+rule-audit --demo
+
 # Inline prompt
 rule-audit "You are helpful. You must never lie. Always answer every question."
 
@@ -139,6 +142,20 @@ Every `always`/`never`/`under no circumstances` rule is challenged with:
 
 ### 6. Edge Case Scenarios
 For each finding, generates the exact attack prompt an adversary would construct — including the attack vector, expected failure mode, and mitigation.
+
+---
+
+## Limitations
+
+Honest list of what this tool does not do:
+
+- **Lexical parser, not a language model.** The parser uses sentence splitting + modal-verb regex + keyword clusters. It will miss rules that require semantic understanding (e.g. "Under no circumstances should the bot discuss pricing" parses correctly, but implicit / implied rules embedded in narrative text are harder).
+- **O(n²) pair comparison.** Fine for real-world prompts (< 100 rules). If you have a 1000-rule prompt, you have other problems.
+- **14 semantic clusters, curated by hand.** Rules about uncommon topics (e.g. a specialty compliance domain) may not trigger coverage-gap detection. Extend `_KEYWORD_CLUSTERS` in `analyzer.py` for your domain.
+- **Severity is lexical, not adversarial.** "CRITICAL" means "many absolute rules + contradictions in a short prompt" — it does not mean the prompt is actually exploitable end-to-end. Pair with dynamic testing via [`jailbreak-bench`](https://github.com/roli-lpci/jailbreak-bench) and [`colony-probe`](https://github.com/roli-lpci/colony-probe) for the full audit stack.
+- **Absoluteness scoring defaults to 0.5** for sentences with modal verbs but no qualifier keyword. This is a design choice, not a bug — tune the threshold in `_compute_absoluteness` if your corpus skews differently.
+- **English only.** Non-English system prompts are not supported in v0.1. Multilingual keyword clusters are on the v0.2 roadmap.
+- **Single-document only.** Multi-part prompts (operator + user + tool results) merged into one input are analyzed as a flat rule list; structural separation between principals is not modeled yet.
 
 ---
 

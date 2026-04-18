@@ -192,9 +192,10 @@ class TestGapDetector:
         prompt = "You are an AI. Be helpful. Answer all questions. Be accurate."
         rules = parse(prompt)
         gaps = find_gaps(rules, prompt)
-        gap_types = [g.gap_type for g in gaps]
         # There should be some gap detected
         assert len(gaps) > 0
+        # And each gap should have a non-empty gap_type tag (real contract, not just count).
+        assert all(g.gap_type for g in gaps), "every gap should have a gap_type tag"
 
 
 # ---------------------------------------------------------------------------

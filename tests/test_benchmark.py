@@ -236,7 +236,10 @@ class TestBasicAssistant:
         """Prompt has no fallback for unexpected scenarios."""
         gap_types = [g.gap_type for g in self.report.result.gaps]
         descriptions = " ".join(g.description for g in self.report.result.gaps)
+        # Real assertions on the extracted data, not just a count:
         assert len(self.report.result.gaps) >= 1
+        assert all(gt for gt in gap_types), "every gap must have a gap_type tag"
+        assert descriptions, "gap descriptions should not all be empty"
 
 
 # ---------------------------------------------------------------------------

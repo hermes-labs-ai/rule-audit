@@ -436,8 +436,8 @@ def _remediation_section(report: AuditReport) -> str:
 
     lines.append("| Priority | Issue | Recommended Fix |")
     lines.append("|----------|-------|-----------------|")
-    for prio, issue, fix in priority_items[:20]:  # cap at 20
+    for prio, item_desc, fix in priority_items[:20]:  # cap at 20
         label = ["", "P1 — Critical", "P2 — Important", "P3 — Recommended"][prio]
-        lines.append(f"| {label} | {issue} | {fix} |")
+        lines.append(f"| {label} | {item_desc} | {fix} |")
 
     return "\n".join(lines)

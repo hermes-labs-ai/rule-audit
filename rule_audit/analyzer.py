@@ -629,7 +629,6 @@ def find_gaps(rules: list[Rule], prompt_text: str = "") -> list[Gap]:
     for rule in conditional_rules:
         # If a conditional rule has a counterpart for the else-case, fine.
         # Heuristic: if no other rule covers the same cluster without condition, it's a gap.
-        clusters = _shared_clusters(rule, rule)  # self-clusters
         has_unconditional_counterpart = any(
             not other.condition
             and other.sentence_index != rule.sentence_index
