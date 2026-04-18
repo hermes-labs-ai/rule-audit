@@ -9,7 +9,10 @@ description = "Detect logical contradictions, gaps, and exploitable edge cases i
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "Hermes Labs", email = "rolybosch96@gmail.com" }
+    { name = "Rolando Bosch", email = "rbosch@lpci.ai" }
+]
+maintainers = [
+    { name = "Hermes Labs", email = "roli@hermes-labs.ai" }
 ]
 keywords = [
     "ai-safety", "llm", "prompt-engineering", "security", "audit",
@@ -32,7 +35,8 @@ requires-python = ">=3.9"
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/roli-lpci/rule-audit"
+Homepage = "https://hermes-labs.ai"
+Organization = "https://hermes-labs.ai"
 Repository = "https://github.com/roli-lpci/rule-audit"
 Issues = "https://github.com/roli-lpci/rule-audit/issues"
 

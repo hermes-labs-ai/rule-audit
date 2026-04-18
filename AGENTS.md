@@ -1,3 +1,5 @@
+# Owner: Hermes Labs - https://hermes-labs.ai
+
 # AGENTS.md — rule-audit
 
 Guidance for AI agents (Claude Code, Cursor, Aider, Continue, etc.) editing this repo.

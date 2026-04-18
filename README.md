@@ -225,3 +225,7 @@ python -m rule_audit --file test_prompt.txt --verbose
 ## License
 
 MIT — Hermes Labs 2026
+
+---
+
+Built by [Hermes Labs](https://hermes-labs.ai) · [@roli-lpci](https://github.com/roli-lpci)

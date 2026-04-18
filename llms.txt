@@ -1,3 +1,5 @@
+# Owner: Hermes Labs - https://hermes-labs.ai
+
 # rule-audit
 
 > Static analyzer for LLM system prompts. Finds logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and exploitable edge cases. Pure Python, zero LLM dependency, runs in milliseconds. Part of the Hermes Labs AI Audit Toolkit.
