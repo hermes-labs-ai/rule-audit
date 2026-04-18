@@ -32,82 +32,6 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# JSON serializer
-# ---------------------------------------------------------------------------
-
-
-def _report_to_dict(report: AuditReport) -> dict:
-    result = report.result
-    return {
-        "generated_at": report.generated_at,
-        "risk_score": report.risk_score,
-        "risk_label": report.risk_label,
-        "rule_count": report.rule_count,
-        "contradictions": [
-            {
-                "rule_a_index": c.rule_a.sentence_index,
-                "rule_b_index": c.rule_b.sentence_index,
-                "rule_a_text": c.rule_a.text,
-                "rule_b_text": c.rule_b.text,
-                "conflict_type": c.conflict_type,
-                "severity": c.severity,
-                "description": c.description,
-                "shared_keywords": c.shared_keywords,
-            }
-            for c in result.contradictions
-        ],
-        "gaps": [
-            {
-                "gap_type": g.gap_type,
-                "description": g.description,
-                "example_scenario": g.example_scenario,
-                "related_rule_indices": [r.sentence_index for r in g.related_rules],
-            }
-            for g in result.gaps
-        ],
-        "priority_ambiguities": [
-            {
-                "rule_indices": [r.sentence_index for r in pa.rules],
-                "description": pa.description,
-                "scenario": pa.scenario,
-            }
-            for pa in result.priority_ambiguities
-        ],
-        "meta_paradoxes": [
-            {
-                "rule_index": mp.rule.sentence_index,
-                "rule_text": mp.rule.text,
-                "paradox_type": mp.paradox_type,
-                "description": mp.description,
-            }
-            for mp in result.meta_paradoxes
-        ],
-        "absoluteness_issues": [
-            {
-                "rule_index": ai.rule.sentence_index,
-                "rule_text": ai.rule.text,
-                "challenge": ai.challenge,
-                "challenge_type": ai.challenge_type,
-            }
-            for ai in result.absoluteness_issues
-        ],
-        "edge_cases": [
-            {
-                "title": ec.title,
-                "scenario": ec.scenario,
-                "rules_in_conflict": ec.rules_in_conflict,
-                "attack_vector": ec.attack_vector,
-                "expected_failure_mode": ec.expected_failure_mode,
-                "mitigation": ec.mitigation,
-                "severity": ec.severity,
-                "tags": ec.tags,
-            }
-            for ec in report.edge_cases
-        ],
-    }
-
-
-# ---------------------------------------------------------------------------
 # Verbose rule dump
 # ---------------------------------------------------------------------------
 
@@ -129,7 +53,7 @@ def _print_rules(report: AuditReport) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="rule_audit",
+        prog="rule-audit",
         description="Analyze an AI system prompt for logical contradictions, gaps, and exploitable edge cases.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -209,7 +133,25 @@ Examples:
         else:
             report = audit(args.prompt)
     except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"error: file not found: {exc.filename or args.file}", file=sys.stderr)
+        return 1
+    except IsADirectoryError:
+        print(
+            f"error: {args.file!r} is a directory, expected a text file.",
+            file=sys.stderr,
+        )
+        return 1
+    except PermissionError as exc:
+        print(
+            f"error: permission denied reading {exc.filename or args.file}",
+            file=sys.stderr,
+        )
+        return 1
+    except UnicodeDecodeError:
+        print(
+            f"error: {args.file!r} is not a valid UTF-8 text file.",
+            file=sys.stderr,
+        )
         return 1
     except Exception as exc:
         print(f"error during analysis: {exc}", file=sys.stderr)

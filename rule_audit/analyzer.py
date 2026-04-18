@@ -138,7 +138,6 @@ _KEYWORD_CLUSTERS: dict[str, list[str]] = {
         "false",
         "fabricate",
         "pretend",
-        "honest",
         "transparency",
         "transparent",
     ],
@@ -153,7 +152,6 @@ _KEYWORD_CLUSTERS: dict[str, list[str]] = {
         "give",
         "resolve",
         "complete",
-        "answer",
     ],
     "refusal": [
         "refuse",

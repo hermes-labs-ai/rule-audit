@@ -263,46 +263,27 @@ def _extract_condition(text: str) -> str:
 
 
 def _extract_keywords(text: str) -> list[str]:
-    """Extract significant keywords (nouns + modal verbs) for matching."""
-    # Simple approach: lowercase tokens, strip punctuation, drop stop words
+    """Extract significant topical keywords for matching.
+
+    Excludes common stop words AND modal/deontic tokens. Without the modal
+    filter, two sentences like "you must always X" and "you must never Y"
+    share the keyword "must" and get flagged as a contradiction on trivial
+    non-overlapping topics. Keywords should be topical, not modal.
+    """
     stop = {
-        "a",
-        "an",
-        "the",
-        "is",
-        "are",
-        "be",
-        "to",
-        "of",
-        "in",
-        "on",
-        "at",
-        "for",
-        "with",
-        "and",
-        "or",
-        "but",
-        "that",
-        "this",
-        "it",
-        "its",
-        "you",
-        "your",
-        "i",
-        "my",
-        "we",
-        "our",
-        "they",
-        "their",
-        "as",
-        "by",
-        "from",
-        "about",
-        "into",
-        "through",
-        "during",
-        "also",
-        "very",
+        # Articles / copulas / connectives
+        "a", "an", "the", "is", "are", "be", "to", "of", "in", "on", "at",
+        "for", "with", "and", "or", "but", "that", "this", "it", "its",
+        "you", "your", "i", "my", "we", "our", "they", "their", "as", "by",
+        "from", "about", "into", "through", "during", "also", "very",
+        # Modal / deontic tokens — these belong to rule modality, not topic.
+        # Keeping them out of keywords prevents cross-topic false positives
+        # from any two rules that share a modal verb.
+        "must", "should", "may", "might", "can", "could", "would", "shall",
+        "will", "ought", "need", "have", "has", "had",
+        "never", "always", "sometimes", "often", "rarely", "usually",
+        "not", "no", "none", "any",
+        "do", "does", "did", "done",
     }
     tokens = re.findall(r"[a-z]+", text.lower())
     return [t for t in tokens if t not in stop and len(t) > 2]
