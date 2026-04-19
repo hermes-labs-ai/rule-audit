@@ -16,7 +16,7 @@ Think: `bandit` / `semgrep` — but for system prompts.
 
 Part of the Hermes Labs AI Audit Toolkit:
 - `rule-audit` — static analysis of prompts (this repo)
-- `jailbreak-bench` — dynamic red-team suite that runs the attacks rule-audit predicts will succeed
+- `hermes-jailbench` — dynamic red-team suite that runs the attacks rule-audit predicts will succeed
 - `colony-probe` — extraction testing for deployed LLM endpoints
 
 ## Start here
@@ -124,6 +124,6 @@ launch/             # Launch post drafts (do not ship to PyPI)
 
 ## Cross-product context
 
-If an agent finds a contradiction that `rule-audit` classifies HIGH severity, the exploit construction is then handed to `jailbreak-bench` for dynamic verification. That's the pipeline: static finds the flaw, dynamic proves it's reachable. Don't reinvent dynamic testing in this repo.
+If an agent finds a contradiction that `rule-audit` classifies HIGH severity, the exploit construction is then handed to `hermes-jailbench` for dynamic verification. That's the pipeline: static finds the flaw, dynamic proves it's reachable. Don't reinvent dynamic testing in this repo.
 
 Home: <https://hermes-labs.ai>
