@@ -22,7 +22,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -37,8 +36,8 @@ dependencies = []
 [project.urls]
 Homepage = "https://hermes-labs.ai"
 Organization = "https://hermes-labs.ai"
-Repository = "https://github.com/roli-lpci/rule-audit"
-Issues = "https://github.com/roli-lpci/rule-audit/issues"
+Repository = "https://github.com/hermes-labs-ai/rule-audit"
+Issues = "https://github.com/hermes-labs-ai/rule-audit/issues"
 
 [project.scripts]
 rule-audit = "rule_audit.cli:main"

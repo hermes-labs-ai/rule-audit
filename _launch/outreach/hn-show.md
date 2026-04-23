@@ -30,7 +30,7 @@ Zero LLM dependency is the point. If you need an LLM to audit your LLM's prompt,
 
 174 tests, MIT license. Part of the Hermes Labs AI Audit Toolkit (sibling tools: `jailbreak-bench` for dynamic safety regression, `colony-probe` for extraction-resistance testing).
 
-Repo: https://github.com/roli-lpci/rule-audit
+Repo: https://github.com/hermes-labs-ai/rule-audit
 
 Feedback welcome on detector coverage. The v0.2 roadmap adds prompt diffing (before/after) and an optional LLM-augmented gap detector.
 

@@ -14,7 +14,7 @@ By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## Dev setup
 
 ```bash
-git clone https://github.com/roli-lpci/rule-audit
+git clone https://github.com/hermes-labs-ai/rule-audit
 cd rule-audit
 python -m pip install -e ".[dev]"
 pytest -q
@@ -104,7 +104,7 @@ Before tagging:
 
 ## Contact
 
-- Bugs / features: [GitHub Issues](https://github.com/roli-lpci/rule-audit/issues).
+- Bugs / features: [GitHub Issues](https://github.com/hermes-labs-ai/rule-audit/issues).
 - Security: `security@hermes-labs.ai` (see [SECURITY.md](SECURITY.md)).
 - Code of conduct violations: `conduct@hermes-labs.ai`.
 - General: <https://hermes-labs.ai>.

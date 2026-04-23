@@ -29,8 +29,8 @@ Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
 
 ## Related
 
-- [hermes-jailbench](https://github.com/roli-lpci/hermes-jailbench): Dynamic red-team suite that runs the attacks rule-audit predicts will succeed.
-- [colony-probe](https://github.com/roli-lpci/colony-probe): Extraction testing for deployed LLM endpoints.
+- [hermes-jailbench](https://github.com/hermes-labs-ai/hermes-jailbench): Dynamic red-team suite that runs the attacks rule-audit predicts will succeed.
+- [colony-probe](https://github.com/hermes-labs-ai/colony-probe): Extraction testing for deployed LLM endpoints.
 - [Hermes Labs](https://hermes-labs.ai): AI audit tooling, EU AI Act Article 15 support.
 
 ## Optional

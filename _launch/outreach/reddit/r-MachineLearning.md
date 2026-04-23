@@ -40,7 +40,7 @@ Exit code 2 on high severity - drop it in a pre-commit hook or PR check.
 
 **Research framing**: the detector families encode a specific theory of "where prompt flaws hide" - modality, topic coverage, priority, meta-reference, absoluteness. Each family is a different hypothesis space. Happy to discuss the theoretical grounding if there's interest.
 
-Repo: https://github.com/roli-lpci/rule-audit (MIT)
+Repo: https://github.com/hermes-labs-ai/rule-audit (MIT)
 
 Part of the Hermes Labs AI Audit Toolkit (sibling tools: `jailbreak-bench`, `colony-probe`).
 

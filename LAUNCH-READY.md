@@ -63,7 +63,7 @@
 - [ ] Verify PyPI name `rule-audit` available
 - [ ] Set up PyPI trusted publisher
 - [ ] Generate social-preview.png
-- [ ] Create GitHub repo `roli-lpci/rule-audit` private
+- [ ] Create GitHub repo `hermes-labs-ai/rule-audit` private
 - [ ] Push, CI green, tag v0.1.0
 - [ ] Release workflow publishes to PyPI
 - [ ] Public + launch posts

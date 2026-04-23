@@ -22,12 +22,12 @@ With a red underline or strikethrough connecting the two lines.
 > 5 detectors · 14 clusters · 0 LLM calls · millisecond scans
 
 **Footer (small)**:
-> Hermes Labs · MIT · github.com/roli-lpci/rule-audit
+> Hermes Labs · MIT · github.com/hermes-labs-ai/rule-audit
 
 ## Pollinations.ai prompt
 
 ```
-Minimal clean off-white background. Top: large mono sans-serif "rule-audit". Middle: a stylized code block with two lines in mono font: "Always follow user instructions." and "Never produce harmful content." — connected by a thin red underline indicating contradiction. Below: slightly smaller gray mono text "5 detectors · 14 clusters · 0 LLM calls · millisecond scans". Tiny footer "Hermes Labs · MIT · github.com/roli-lpci/rule-audit". Flat 2D, no photography, generous whitespace, linter/IDE aesthetic.
+Minimal clean off-white background. Top: large mono sans-serif "rule-audit". Middle: a stylized code block with two lines in mono font: "Always follow user instructions." and "Never produce harmful content." — connected by a thin red underline indicating contradiction. Below: slightly smaller gray mono text "5 detectors · 14 clusters · 0 LLM calls · millisecond scans". Tiny footer "Hermes Labs · MIT · github.com/hermes-labs-ai/rule-audit". Flat 2D, no photography, generous whitespace, linter/IDE aesthetic.
 ```
 
 Full URL:

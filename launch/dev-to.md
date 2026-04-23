@@ -81,6 +81,6 @@ Every detector has tests. 174 passing. Code is small enough to read in an hour.
 
 Static finds the flaws before you deploy. Dynamic measures whether the model still refuses the patterns you expect. Probing tests whether your prompt's confidentiality holds. Together, they form the evidence trail EU AI Act Article 15 (accuracy and robustness) is going to ask for.
 
-Repo: https://github.com/roli-lpci/rule-audit
+Repo: https://github.com/hermes-labs-ai/rule-audit
 License: MIT
 Homepage: https://hermes-labs.ai

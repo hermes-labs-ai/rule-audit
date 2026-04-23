@@ -73,7 +73,7 @@ Part of the Hermes Labs AI Audit Toolkit (3 tools shipping this week):
 Separate repos, complementary use cases.
 
 **10/**
-Repo: github.com/roli-lpci/rule-audit
+Repo: github.com/hermes-labs-ai/rule-audit
 Homepage: hermes-labs.ai
 
 Feedback welcome on:

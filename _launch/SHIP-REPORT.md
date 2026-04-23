@@ -13,7 +13,7 @@ Pre-ship gate: **10/10 PASS**. No waivers.
 ## Roli's remaining steps (ordered)
 1. Read `_launch/outreach/hn-show.md`, `_launch/outreach/linkedin.md` (the 250-word variant reads well), and spot-check the Limitations section in `README.md`.
 2. PyPI Trusted Publishing setup per `_launch/release.sh`.
-3. Flip repo public: `gh repo edit roli-lpci/rule-audit --visibility public --accept-visibility-change-consequences`.
+3. Flip repo public: `gh repo edit hermes-labs-ai/rule-audit --visibility public --accept-visibility-change-consequences`.
 4. Upload `_launch/images/social-1200x630.jpg` via GitHub Settings -> Social preview.
 5. Run `bash _launch/gh-metadata.sh` after public flip.
 6. Run `bash _launch/release.sh` to tag v0.1.0.

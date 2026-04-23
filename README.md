@@ -27,7 +27,7 @@ pip install rule-audit
 
 Or from source:
 ```bash
-git clone https://github.com/roli-lpci/rule-audit
+git clone https://github.com/hermes-labs-ai/rule-audit
 cd rule-audit
 pip install -e ".[dev]"
 ```
@@ -152,7 +152,7 @@ Honest list of what this tool does not do:
 - **Lexical parser, not a language model.** The parser uses sentence splitting + modal-verb regex + keyword clusters. It will miss rules that require semantic understanding (e.g. "Under no circumstances should the bot discuss pricing" parses correctly, but implicit / implied rules embedded in narrative text are harder).
 - **O(n²) pair comparison.** Fine for real-world prompts (< 100 rules). If you have a 1000-rule prompt, you have other problems.
 - **14 semantic clusters, curated by hand.** Rules about uncommon topics (e.g. a specialty compliance domain) may not trigger coverage-gap detection. Extend `_KEYWORD_CLUSTERS` in `analyzer.py` for your domain.
-- **Severity is lexical, not adversarial.** "CRITICAL" means "many absolute rules + contradictions in a short prompt" — it does not mean the prompt is actually exploitable end-to-end. Pair with dynamic testing via [`hermes-jailbench`](https://github.com/roli-lpci/hermes-jailbench) and [`colony-probe`](https://github.com/roli-lpci/colony-probe) for the full audit stack.
+- **Severity is lexical, not adversarial.** "CRITICAL" means "many absolute rules + contradictions in a short prompt" — it does not mean the prompt is actually exploitable end-to-end. Pair with dynamic testing via [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) and [`colony-probe`](https://github.com/hermes-labs-ai/colony-probe) for the full audit stack.
 - **Absoluteness scoring defaults to 0.5** for sentences with modal verbs but no qualifier keyword. This is a design choice, not a bug — tune the threshold in `_compute_absoluteness` if your corpus skews differently.
 - **English only.** Non-English system prompts are not supported in v0.1. Multilingual keyword clusters are on the v0.2 roadmap.
 - **Single-document only.** Multi-part prompts (operator + user + tool results) merged into one input are analyzed as a flat rule list; structural separation between principals is not modeled yet.
@@ -187,22 +187,19 @@ The analyzer uses combinatorial pair analysis:
 
 ---
 
-## Road to SaaS
+## Roadmap
 
-This tool was built as a static analyzer, but the architecture supports a commercial path:
+Planned OSS work on this package:
 
 | Phase | Feature | Status |
 |-------|---------|--------|
 | v0.1 | Core static analysis, CLI, Python API | Done |
 | v0.2 | Rule diffing (before/after prompt edits) | Planned |
-| v0.3 | LLM-augmented gap detection (optional) | Planned |
+| v0.3 | LLM-augmented gap detection (optional plugin) | Planned |
 | v0.4 | GitHub Action / CI integration | Planned |
-| v1.0 | Web UI + prompt editor with live feedback | Planned |
-| SaaS | Per-prompt API, team dashboards, compliance reports | Roadmap |
+| v1.0 | CSV / SARIF export for compliance toolchains | Planned |
 
-**Target customers:** AI teams building production LLM products who need to audit system prompts before deployment. Compliance teams preparing for EU AI Act audits. Red team consultancies.
-
-**Pricing model:** Free CLI tier → $X/month API tier → Enterprise (custom).
+The package stays MIT, fully free, no hosted tier. If you want EU AI Act compliance reports, ANNEX-IV packs, or red-team engagements delivered as a report, that's the [Hermes Labs audit practice](https://hermes-labs.ai), not a SaaS version of this tool.
 
 ---
 
@@ -225,6 +222,37 @@ python -m rule_audit --file test_prompt.txt --verbose
 ## License
 
 MIT — Hermes Labs 2026
+
+---
+
+## About Hermes Labs
+
+[Hermes Labs](https://hermes-labs.ai) builds AI audit infrastructure for enterprise AI systems — EU AI Act readiness, ISO 42001 evidence bundles, continuous compliance monitoring, agent-level risk testing. We work with teams shipping AI into regulated environments.
+
+**Our OSS philosophy — read this if you're deciding whether to depend on us:**
+
+- **Everything we release is free, forever.** MIT or Apache-2.0. No "open core," no SaaS tier upsell, no paid version with the features you actually need. You can run this repo commercially, without talking to us.
+- **We open-source our own infrastructure.** The tools we release are what Hermes Labs uses internally — we don't publish demo code, we publish production code.
+- **We sell audit work, not licenses.** If you want an ANNEX-IV pack, an ISO 42001 evidence bundle, gap analysis against the EU AI Act, or agent-level red-teaming delivered as a report, that's at [hermes-labs.ai](https://hermes-labs.ai). If you just want the code to run it yourself, it's right here.
+
+**The Hermes Labs OSS audit stack** (public, production-grade, no SaaS):
+
+**Static audit** (before deployment)
+- [**lintlang**](https://github.com/hermes-labs-ai/lintlang) — Static linter for AI agent configs, tool descriptions, system prompts. `pip install lintlang`
+- [**scaffold-lint**](https://github.com/hermes-labs-ai/scaffold-lint) — Scaffold budget + technique stacking (flags `SCAFFOLD_TOO_LONG`, `SCAFFOLD_STACKING` when multiple scaffold techniques are mixed)
+- [**intent-verify**](https://github.com/hermes-labs-ai/intent-verify) — Repo intent verification + spec-drift checks
+
+**Runtime observability** (while the agent runs)
+- [**little-canary**](https://github.com/hermes-labs-ai/little-canary) — Prompt injection detection via sacrificial canary-model probes
+- [**suy-sideguy**](https://github.com/hermes-labs-ai/suy-sideguy) — Runtime policy guard — user-space enforcement + forensic reports
+- [**colony-probe**](https://github.com/hermes-labs-ai/colony-probe) — Prompt confidentiality audit — detects system-prompt reconstruction
+
+**Regression & scoring** (to prove what changed)
+- [**hermes-jailbench**](https://github.com/hermes-labs-ai/hermes-jailbench) — Jailbreak regression benchmark. `pip install hermes-jailbench`
+- [**agent-convergence-scorer**](https://github.com/hermes-labs-ai/agent-convergence-scorer) — Score how similar N agent outputs are. `pip install agent-convergence-scorer`
+
+**Supporting infra**
+- [**claude-router**](https://github.com/hermes-labs-ai/claude-router) · [**zer0dex**](https://github.com/hermes-labs-ai/zer0dex) · [**quick-gate-python**](https://github.com/hermes-labs-ai/quick-gate-python) · [**quick-gate-js**](https://github.com/hermes-labs-ai/quick-gate-js) · [**repo-audit**](https://github.com/hermes-labs-ai/repo-audit)
 
 ---
 

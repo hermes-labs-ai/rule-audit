@@ -52,7 +52,7 @@ Exit code 2 on high severity. 174 tests. MIT license.
 
 For EU AI Act operators: this maps to Article 15 (accuracy and robustness) as the pre-deployment static artifact — evidence that your system prompt passed a mechanical review before shipping. Pairs with continuous post-deployment measurement (we ship that one too — `jailbreak-bench`, same week).
 
-github.com/roli-lpci/rule-audit
+github.com/hermes-labs-ai/rule-audit
 hermes-labs.ai
 
 ---
@@ -100,6 +100,6 @@ For EU AI Act Article 15 (accuracy and robustness) operators: the three tools to
 
 174 tests, MIT license, pip install rule-audit.
 
-github.com/roli-lpci/rule-audit · hermes-labs.ai
+github.com/hermes-labs-ai/rule-audit · hermes-labs.ai
 
 Feedback welcome on detector coverage, keyword cluster design, and how the SARIF output should schema for the code-scanning use case.

@@ -9,7 +9,7 @@
 **Line to insert** (alphabetical):
 
 ```markdown
-- [rule-audit](https://github.com/roli-lpci/rule-audit) - Static analyzer for LLM system prompts. Detects contradictions, coverage gaps, priority ambiguities, meta-paradoxes, and absoluteness issues across 14 semantic clusters. Pure Python, no LLM dependency, runs in milliseconds. 174 tests, MIT. Part of the Hermes Labs AI Audit Toolkit.
+- [rule-audit](https://github.com/hermes-labs-ai/rule-audit) - Static analyzer for LLM system prompts. Detects contradictions, coverage gaps, priority ambiguities, meta-paradoxes, and absoluteness issues across 14 semantic clusters. Pure Python, no LLM dependency, runs in milliseconds. 174 tests, MIT. Part of the Hermes Labs AI Audit Toolkit.
 ```
 
 **PR body**:
@@ -34,7 +34,7 @@ Happy to revise if you'd prefer a different section.
 **Line to insert**:
 
 ```markdown
-- [rule-audit](https://github.com/roli-lpci/rule-audit) - Pre-deployment static analysis for LLM system prompts. Finds logical contradictions, coverage gaps, priority ambiguities, and meta-rule paradoxes before the prompt ships. MIT, pure Python.
+- [rule-audit](https://github.com/hermes-labs-ai/rule-audit) - Pre-deployment static analysis for LLM system prompts. Finds logical contradictions, coverage gaps, priority ambiguities, and meta-rule paradoxes before the prompt ships. MIT, pure Python.
 ```
 
 ---
@@ -46,7 +46,7 @@ Happy to revise if you'd prefer a different section.
 **Line to insert**:
 
 ```markdown
-- [rule-audit](https://github.com/roli-lpci/rule-audit) - Static analyzer for LLM system prompts. Treats natural-language safety rules as a linting target. Python, MIT.
+- [rule-audit](https://github.com/hermes-labs-ai/rule-audit) - Static analyzer for LLM system prompts. Treats natural-language safety rules as a linting target. Python, MIT.
 ```
 
 ---

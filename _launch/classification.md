@@ -13,5 +13,5 @@ Developers and governance teams who maintain system prompts as product assets an
 
 ## Normalized repo root
 `/Users/rbr_lpci/Documents/projects/hermes-labs-hackathon/round-8-modelbreak/agent-07/rule-audit`
-Remote: `https://github.com/roli-lpci/rule-audit.git`
+Remote: `https://github.com/hermes-labs-ai/rule-audit.git`
 Head: `db15061 fix: address maintainer review findings for v0.1.0` (local; not yet pushed because push authorization is pending).
