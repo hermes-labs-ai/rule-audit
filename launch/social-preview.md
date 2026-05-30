@@ -33,7 +33,7 @@ Minimal clean off-white background. Top: large mono sans-serif "rule-audit". Mid
 Full URL:
 
 ```
-https://image.pollinations.ai/prompt/Minimal%20clean%20off-white%20background.%20Top%3A%20large%20mono%20sans-serif%20%22rule-audit%22.%20Middle%3A%20a%20stylized%20code%20block%20with%20two%20lines%20in%20mono%20font%3A%20%22Always%20follow%20user%20instructions.%22%20and%20%22Never%20produce%20harmful%20content.%22%20%E2%80%94%20connected%20by%20a%20thin%20red%20underline%20indicating%20contradiction.%20Below%3A%20slightly%20smaller%20gray%20mono%20text%20%225%20detectors%20%C2%B7%2014%20clusters%20%C2%B7%200%20LLM%20calls%20%C2%B7%20millisecond%20scans%22.%20Tiny%20footer%20%22Hermes%20Labs%20%C2%B7%20MIT%20%C2%B7%20github.com%2Froli-lpci%2Frule-audit%22.%20Flat%202D%2C%20no%20photography%2C%20generous%20whitespace%2C%20linter%2FIDE%20aesthetic.?width=1280&height=640&nologo=true&seed=4518
+https://image.pollinations.ai/prompt/Minimal%20clean%20off-white%20background.%20Top%3A%20large%20mono%20sans-serif%20%22rule-audit%22.%20Middle%3A%20a%20stylized%20code%20block%20with%20two%20lines%20in%20mono%20font%3A%20%22Always%20follow%20user%20instructions.%22%20and%20%22Never%20produce%20harmful%20content.%22%20%E2%80%94%20connected%20by%20a%20thin%20red%20underline%20indicating%20contradiction.%20Below%3A%20slightly%20smaller%20gray%20mono%20text%20%225%20detectors%20%C2%B7%2014%20clusters%20%C2%B7%200%20LLM%20calls%20%C2%B7%20millisecond%20scans%22.%20Tiny%20footer%20%22Hermes%20Labs%20%C2%B7%20MIT%20%C2%B7%20github.com%2Fhermes-labs-ai%2Frule-audit%22.%20Flat%202D%2C%20no%20photography%2C%20generous%20whitespace%2C%20linter%2FIDE%20aesthetic.?width=1280&height=640&nologo=true&seed=4518
 ```
 
 ## Fallback: SVG
