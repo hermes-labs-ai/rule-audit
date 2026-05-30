@@ -1,0 +1,27 @@
+{
+  "title": "rule-audit: Static prompt audit for LLM system prompts",
+  "description": "rule-audit is a static-analysis CLI for the AI reliability layer that audits LLM system prompts for silent failure modes — logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absoluteness issues — deterministically and offline, with no LLM calls and no network access, generating the concrete attack scenario for each finding so prompt bugs are caught in CI before they ship.",
+  "upload_type": "software",
+  "license": "MIT",
+  "version": "0.1.1",
+  "creators": [
+    { "name": "Bosch Rodriguez, Rolando", "orcid": "0009-0005-4896-1112", "affiliation": "Hermes Labs" }
+  ],
+  "keywords": [
+    "AI reliability",
+    "LLM reliability",
+    "silent failure modes",
+    "behavioral evaluation",
+    "system-prompt audit",
+    "static analysis",
+    "quality gate",
+    "red-teaming"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.19042469",
+      "relation": "references",
+      "scheme": "doi"
+    }
+  ]
+}
