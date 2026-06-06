@@ -14,10 +14,11 @@ Pure Python. Zero LLM dependency. Zero network calls. Runs in milliseconds.
 
 Think: `bandit` / `semgrep` — but for system prompts.
 
-Part of the Hermes Labs AI Audit Toolkit:
-- `rule-audit` — static analysis of prompts (this repo)
-- `hermes-jailbench` — dynamic red-team suite that runs the attacks rule-audit predicts will succeed
-- `colony-probe` — extraction testing for deployed LLM endpoints
+Part of the Hermes Labs reliability stack:
+- `rule-audit` — static analysis of prompt logical content (this repo)
+- `lintlang` — static linter for agent configs and tool descriptions (structure, not logical content) — complementary
+- `hermes-jailbench` — dynamic jailbreak regression suite for live endpoints — complementary
+- `colony-probe` — prompt-confidentiality audit (system-prompt reconstruction via multi-turn probing)
 
 ## Start here
 
@@ -28,7 +29,7 @@ Part of the Hermes Labs AI Audit Toolkit:
 
 ## Public API
 
-Three entry points. These are the stability guarantee — breaking changes require a major version bump.
+Three entry points. These form the stable surface — breaking changes require a major version bump.
 
 ```python
 from rule_audit import audit, audit_file, AuditReport
@@ -124,6 +125,6 @@ launch/             # Launch post drafts (do not ship to PyPI)
 
 ## Cross-product context
 
-If an agent finds a contradiction that `rule-audit` classifies HIGH severity, the exploit construction is then handed to `hermes-jailbench` for dynamic verification. That's the pipeline: static finds the flaw, dynamic proves it's reachable. Don't reinvent dynamic testing in this repo.
+When `rule-audit` flags a HIGH-severity contradiction, the suggested edge-case scenario is a starting point for dynamic verification — `hermes-jailbench` tests whether the flaw is reachable against a live endpoint. The pipeline: static analysis surfaces candidate flaws, dynamic testing checks reachability. Don't reinvent dynamic testing in this repo.
 
 Home: <https://hermes-labs.ai>

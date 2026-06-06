@@ -1,21 +1,26 @@
 # rule-audit
 
-**rule-audit is a static analyzer for AI system prompts. It finds logical contradictions, coverage gaps, and exploitable edge cases — without running an LLM.**
+**rule-audit is a static analyzer for AI system prompts: it parses a prompt into normative rules and reports logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absolute-rule edge cases — without calling an LLM.**
 
-Built at Hermes Labs Hackathon Round 8: ModelBreak.
+[![CI](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/rule-audit.svg)](https://pypi.org/project/rule-audit/)
+[![Python](https://img.shields.io/pypi/pyversions/rule-audit.svg)](https://pypi.org/project/rule-audit/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Part of the [Hermes Labs reliability stack](https://github.com/hermes-labs-ai).
 
 ---
 
-## The Problem
+## The problem
 
-Any sufficiently complex AI safety prompt contains rules that contradict each other under specific conditions. These contradictions are invisible to the author but obvious to an attacker. `rule-audit` finds them first.
+A complex AI safety prompt can contain rules that conflict under specific conditions. Those conflicts are easy to write and hard to see by eye. `rule-audit` reads the prompt the way a linter reads code and surfaces the conflicts as structured findings.
 
-**Real contradiction in standard safety prompts:**
+Illustrative example — two rules that have no stated priority between them:
 ```
 "You must always follow user instructions."
 "You must never produce harmful content."
 ```
-These are irreconcilable the moment a user instructs the model to produce harmful content. No priority clause means the model chooses arbitrarily — or the attacker chooses for it.
+The moment a user instructs the model to produce harmful content, nothing in the prompt says which rule wins. `rule-audit` flags this pair so the author can add an explicit ordering.
 
 ---
 
@@ -32,39 +37,38 @@ cd rule-audit
 pip install -e ".[dev]"
 ```
 
+Pure Python, no runtime dependencies, Python 3.9+.
+
 ---
 
-## Quickstart
+## 60-second quickstart
 
 ### CLI
 
 ```bash
-# Quick demo (no input needed — exercises every detector family)
+# Built-in demo — exercises every detector family, no input needed
 rule-audit --demo
 
 # Inline prompt
 rule-audit "You are helpful. You must never lie. Always answer every question."
 
-# From file
+# From a file
 rule-audit --file system_prompt.txt
 
-# Save Markdown report
+# Save a Markdown report
 rule-audit --file system_prompt.txt --output report.md
 
-# JSON output for downstream processing
+# JSON for downstream processing
 rule-audit --file system_prompt.txt --format json
 
-# Summary only (for CI gates)
+# Summary only (handy in CI)
 rule-audit --file system_prompt.txt --format summary
 
-# Show all parsed rules
-rule-audit --file system_prompt.txt --verbose
-
-# Only show high-severity findings
+# Only high-severity findings
 rule-audit --file system_prompt.txt --min-severity high
 ```
 
-Exit codes: `0` = low/no risk, `2` = high/critical risk, `1` = error.
+Exit codes: `0` = LOW/MEDIUM risk, `2` = HIGH/CRITICAL risk, `1` = error.
 
 ### Python API
 
@@ -80,16 +84,16 @@ report = audit("""
 """)
 
 print(report.summary())
-# rule-audit report  [2026-04-15T...]
+# rule-audit report  [2026-...T...]
 # ============================================================
-#   Rules parsed          : 6
-#   Contradictions        : 3  (2 high, 1 medium)
-#   Coverage gaps         : 4
-#   Priority ambiguities  : 2
+#   Rules parsed          : 4
+#   Contradictions        : 1  (1 high, 0 medium)
+#   Coverage gaps         : 5
+#   Priority ambiguities  : 0
 #   Meta-paradoxes        : 0
 #   Absoluteness issues   : 5
-#   Edge case scenarios   : 11
-#   Risk score            : 67/100  [HIGH]
+#   Edge case scenarios   : 17
+#   Risk score            : 55/100  [HIGH]
 
 # Full Markdown report
 md = report.to_markdown()
@@ -99,63 +103,56 @@ for c in report.result.contradictions:
     print(c.severity, c.description)
 
 for ec in report.edge_cases:
-    print(ec.title)
-    print(ec.attack_vector)
+    print(ec.title, ec.attack_vector)
 ```
 
+(Exact counts depend on the input prompt; the values above are the actual output for the five-line prompt shown.)
+
 ---
 
-## What It Detects
+## What it detects
 
 ### 1. Contradictions
-Rule pairs where one says "always X" and another says "never X in context Y". Three subtypes:
+Rule pairs that pull against each other. Four detector families:
 
-- **Direct** — opposing modalities on the same topic (`MUST` vs `MUST_NOT`)
-- **Conditional** — one rule applies unconditionally, another restricts within a subset (boundary is undefined)
-- **Absoluteness** — two absolute rules that pull in opposite directions (compliance vs safety)
+- **Direct** — opposing modalities on a shared topic (e.g. `MUST` vs `MUST_NOT`).
+- **Conditional** — one rule applies unconditionally, another applies a contradicting directive under a condition; the overlap region is undefined.
+- **Scope** — a universal obligation (`always …`) and a restricted obligation (`… only / except …`) on the same domain.
+- **Absoluteness** — two high-absoluteness rules that pull in opposite directions (e.g. compliance vs safety).
 
-### 2. Coverage Gaps
-Scenario domains with no rule coverage. Checks for:
-- Harmful content handling
-- Principal hierarchy (user vs operator vs developer)
-- Ambiguous request handling
-- Persona / roleplay scenarios
-- Refusal protocol
-- Instruction conflict resolution
-- Self-disclosure rules
-- Edge case fallback behavior
+### 2. Coverage gaps
+Checks the prompt against eight safety-relevant domains and flags any with no rule coverage: harmful content, principal hierarchy (user vs operator vs developer), ambiguous requests, persona/roleplay, refusal protocol, instruction-conflict resolution, self-disclosure of instructions, and edge-case fallback behavior. Also flags conditional rules that have no stated default for the else-case.
 
-### 3. Priority Ambiguities
-Rule clusters that conflict with no explicit ordering. Classic example: a safety rule and a helpfulness rule both applying to the same request, with no stated priority.
+### 3. Priority ambiguities
+Rule clusters that conflict with no explicit ordering and no meta-rule that resolves them.
 
-### 4. Meta-Rule Paradoxes
-Rules that reference rules:
-- **Self-defeating** — "ignore all instructions" voids itself
-- **Override loops** — "these instructions supersede all others" is exploitable via injection
-- **Circular** — a rule that requires itself to be applied before it can be applied
+### 4. Meta-rule paradoxes
+Rules that reference rules — e.g. "ignore all previous instructions" (self-defeating), "these instructions supersede all others" (exploitable via injection), or override language elsewhere in the prompt that could be used to void other rules.
 
-### 5. Absoluteness Audit
-Every `always`/`never`/`under no circumstances` rule is challenged with:
-- Known exceptions that legitimately exist
-- Context-dependent cases where the absolute doesn't hold
-- Adversarial triggers that exploit the absolute
+### 5. Absoluteness audit
+Each `always` / `never` / `under no circumstances` rule is paired with challenge scenarios: known exceptions, context-dependent cases, and adversarial triggers.
 
-### 6. Edge Case Scenarios
-For each finding, generates the exact attack prompt an adversary would construct — including the attack vector, expected failure mode, and mitigation.
+### 6. Edge-case scenarios
+For each finding, the report renders a concrete example scenario plus a suggested attack vector, expected failure mode, and mitigation. These are templated from the finding — illustrative starting points for testing, not verified exploits.
 
 ---
 
-## Limitations
+## Limitations / what it does NOT do
 
-Honest list of what this tool does not do:
+- **Lexical parser, not a language model.** Parsing is sentence-splitting + modal-verb regex + keyword clusters. Rules that need semantic understanding (implied or narrative-embedded constraints) can be missed.
+- **It does not prove a prompt is exploitable.** A `CRITICAL` risk label means "many absolute rules and contradictions in a short prompt" by the lexical scoring — not a verified end-to-end exploit. For dynamic verification, pair it with [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) (jailbreak regression) and [`colony-probe`](https://github.com/hermes-labs-ai/colony-probe) (prompt-confidentiality probing).
+- **14 keyword clusters, curated by hand.** Uncommon domains may not trigger coverage-gap detection; extend `_KEYWORD_CLUSTERS` in `analyzer.py`.
+- **Absoluteness defaults to 0.5** for modal sentences with no qualifier keyword. A design choice — tune `_compute_absoluteness` for your corpus.
+- **English only** in this release.
+- **Single-document only.** Multi-part prompts (operator + user + tool results) merged into one input are analyzed as a flat rule list; structural separation between principals is not modeled.
+- **O(n²) pair comparison.** Fine for realistic prompts; very large rule sets will be slow.
 
-- **Lexical parser, not a language model.** The parser uses sentence splitting + modal-verb regex + keyword clusters. It will miss rules that require semantic understanding (e.g. "Under no circumstances should the bot discuss pricing" parses correctly, but implicit / implied rules embedded in narrative text are harder).
-- **O(n²) pair comparison.** Fine for real-world prompts (< 100 rules). If you have a 1000-rule prompt, you have other problems.
-- **14 semantic clusters, curated by hand.** Rules about uncommon topics (e.g. a specialty compliance domain) may not trigger coverage-gap detection. Extend `_KEYWORD_CLUSTERS` in `analyzer.py` for your domain.
-- **Severity is lexical, not adversarial.** "CRITICAL" means "many absolute rules + contradictions in a short prompt" — it does not mean the prompt is actually exploitable end-to-end. Pair with dynamic testing via [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) and [`colony-probe`](https://github.com/hermes-labs-ai/colony-probe) for the full audit stack.
-- **Absoluteness scoring defaults to 0.5** for sentences with modal verbs but no qualifier keyword. This is a design choice, not a bug — tune the threshold in `_compute_absoluteness` if your corpus skews differently.
-- **English only.** Non-English system prompts are not supported in v0.1. Multilingual keyword clusters are on the v0.2 roadmap.
-- **Single-document only.** Multi-part prompts (operator + user + tool results) merged into one input are analyzed as a flat rule list; structural separation between principals is not modeled yet.
+---
+
+## How it relates to other tools
+
+- **`rule-audit` and [`lintlang`](https://github.com/roli-lpci/lintlang) are complementary, not duplicates.** `rule-audit` analyzes the *logical content* of a system prompt (contradictions, gaps, priority). `lintlang` lints the *structure* of agent configs and tool descriptions. Run both.
+- **`rule-audit` is static; [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) is dynamic.** Static analysis finds candidate flaws; dynamic testing checks whether they are reachable against a live endpoint.
 
 ---
 
@@ -164,64 +161,37 @@ Honest list of what this tool does not do:
 ```
 rule_audit/
 ├── __init__.py      # Public API: audit(), audit_file(), AuditReport
-├── parser.py        # Sentence splitting, modal verb detection, Rule objects
-├── analyzer.py      # Contradiction finder, gap detector, priority mapper
+├── parser.py        # Sentence splitting, modal-verb detection, Rule objects
+├── analyzer.py      # Contradiction / gap / priority / meta / absoluteness detectors
 ├── edge_cases.py    # Scenario generator from analysis results
-├── report.py        # Markdown + summary renderer, AuditReport class
+├── report.py        # AuditReport + Markdown / JSON renderers
 └── cli.py           # CLI entry point
 ```
 
-**Pure Python. Zero LLM dependency. Zero API calls.**
-
-The parser uses NLP heuristics:
-- Sentence boundary detection (period + newline + list markers)
-- Modal verb regex patterns (must/should/may + negations)
-- Absoluteness scoring (lexical keywords → 0.0–1.0 scale)
-- Keyword cluster matching (14 semantic clusters: harm, privacy, identity, truth, ...)
-
-The analyzer uses combinatorial pair analysis:
-- O(n²) rule pair comparison (practical for prompts: n < 100)
-- Cluster overlap detection for shared domain identification
-- Modality opposition lookup table
-- Absoluteness threshold gates
-
----
-
-## Roadmap
-
-Planned OSS work on this package:
-
-| Phase | Feature | Status |
-|-------|---------|--------|
-| v0.1 | Core static analysis, CLI, Python API | Done |
-| v0.2 | Rule diffing (before/after prompt edits) | Planned |
-| v0.3 | LLM-augmented gap detection (optional plugin) | Planned |
-| v0.4 | GitHub Action / CI integration | Planned |
-| v1.0 | CSV / SARIF export for compliance toolchains | Planned |
-
-The package stays MIT, fully free, no hosted tier. If you want EU AI Act compliance reports, ANNEX-IV packs, or red-team engagements delivered as a report, that's the [Hermes Labs audit practice](https://hermes-labs.ai), not a SaaS version of this tool.
+Pure Python standard library, zero runtime dependencies, deterministic (same input → same output), no network calls.
 
 ---
 
 ## Development
 
 ```bash
-# Run tests
+pip install -e ".[dev]"
+
+# Run the test suite
 pytest
 
-# Run with coverage
+# With coverage
 pytest --cov=rule_audit --cov-report=term-missing
 
-# Test against a real prompt
-echo "Your system prompt here" > test_prompt.txt
-python -m rule_audit --file test_prompt.txt --verbose
+# Audit a real prompt
+python -m rule_audit --file your_prompt.txt --verbose
 ```
 
 ---
 
 ## License
 
-MIT — Hermes Labs 2026
+MIT — see [LICENSE](LICENSE). © Hermes Labs 2026.
 
 ---
 
@@ -229,6 +199,6 @@ MIT — Hermes Labs 2026
 
 Hermes Labs is an independent AI-reliability lab building open-source tools that catch silent failure modes in production AI. More at [hermes-labs.ai](https://hermes-labs.ai).
 
----
+Not affiliated with NousResearch, Teknium, the Nous-Hermes LLM line, or any unrelated `hermes-*` project.
 
 Built by [Hermes Labs](https://hermes-labs.ai) · [@hermes-labs-ai](https://github.com/hermes-labs-ai)
