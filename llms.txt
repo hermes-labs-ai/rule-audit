@@ -2,9 +2,9 @@
 
 # rule-audit
 
-> Static analyzer for LLM system prompts. Finds logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and exploitable edge cases. Pure Python, zero LLM dependency, runs in milliseconds. Part of the Hermes Labs AI Audit Toolkit.
+> Static analyzer for LLM system prompts. Parses a prompt into normative rules and reports logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absolute-rule edge cases. Pure Python, zero LLM dependency, deterministic. Part of the Hermes Labs reliability stack.
 
-rule-audit is `bandit` / `semgrep` for AI system prompts. Given a raw prompt string, it extracts normative rules, classifies their modality (MUST / MUST_NOT / SHOULD / MAY), scores absoluteness, and finds pairs that conflict. It generates concrete attack scenarios for each finding — the exact prompts an adversary would construct to exploit the flaw. No API keys, no network, no LLM calls.
+rule-audit is, roughly, a linter for AI system prompts. Given a raw prompt string, it extracts normative rules, classifies their modality (MUST / MUST_NOT / SHOULD / MAY), scores absoluteness, and finds pairs that conflict. For each finding it renders a concrete example scenario with a suggested attack vector and mitigation — illustrative starting points for testing, not verified exploits. No API keys, no network, no LLM calls.
 
 Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
 
@@ -12,7 +12,7 @@ Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
 
 - [README](README.md): Install, quickstart, CLI and Python API usage, architecture overview.
 - [SPEC](SPEC.md): Full technical spec — parsing algorithm, contradiction detection methodology, severity calibration, data model, performance characteristics, known limitations.
-- [ROADMAP](ROADMAP.md): v0.1 (released), v0.2 (LLM-assisted + SARIF), v0.3 (auto-fix + HTML report), v1.0 (SaaS + GitHub Action).
+- [ROADMAP](ROADMAP.md): planned work — see the file for current status.
 - [CLAUDE](CLAUDE.md): Project conventions for AI agents editing this repo.
 - [AGENTS](AGENTS.md): Public API surface, extension points (`_KEYWORD_CLUSTERS`, detector functions), conventions, don'ts.
 - [CHANGELOG](CHANGELOG.md): Release history.
@@ -25,13 +25,14 @@ Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
 - [samples/content_moderator.txt](samples/content_moderator.txt): Moderation prompt with absolute-vs-nuanced tensions.
 - [samples/customer_support.txt](samples/customer_support.txt): Support prompt with policy-vs-empathy ambiguity.
 - [samples/enterprise_rag.txt](samples/enterprise_rag.txt): RAG-based enterprise prompt with retrieval-scope conflicts.
-- [benchmarks/README](benchmarks/README.md): Expected finding counts per sample, regression gate.
+- [benchmarks/README](benchmarks/README.md): Per-sample finding counts and how to reproduce them; the regression gate lives in `tests/test_benchmark.py`.
 
 ## Related
 
-- [hermes-jailbench](https://github.com/hermes-labs-ai/hermes-jailbench): Dynamic red-team suite that runs the attacks rule-audit predicts will succeed.
-- [colony-probe](https://github.com/hermes-labs-ai/colony-probe): Extraction testing for deployed LLM endpoints.
-- [Hermes Labs](https://hermes-labs.ai): AI audit tooling, EU AI Act Article 15 support.
+- [hermes-jailbench](https://github.com/hermes-labs-ai/hermes-jailbench): Dynamic jailbreak regression suite — complements rule-audit's static analysis with live-endpoint testing.
+- [colony-probe](https://github.com/hermes-labs-ai/colony-probe): Prompt-confidentiality audit (system-prompt reconstruction via multi-turn probing).
+- [lintlang](https://github.com/roli-lpci/lintlang): Static linter for agent configs and tool descriptions — complementary to rule-audit (structure vs logical content).
+- [Hermes Labs](https://hermes-labs.ai): AI reliability tooling.
 
 ## Optional
 
