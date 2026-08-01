@@ -64,7 +64,7 @@ rule-audit --file system_prompt.txt --format json
 # Summary only (handy in CI)
 rule-audit --file system_prompt.txt --format summary
 
-# Only high-severity findings
+# Keep contradiction and edge-case detail at high severity
 rule-audit --file system_prompt.txt --min-severity high
 ```
 

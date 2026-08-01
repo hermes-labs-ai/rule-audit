@@ -97,7 +97,10 @@ Examples:
         "--min-severity",
         choices=["high", "medium", "low"],
         default="low",
-        help="Only show findings at or above this severity (default: low = show all).",
+        help=(
+            "Only show contradictions and edge-case scenarios at or above "
+            "this severity (default: low = show all)."
+        ),
     )
     parser.add_argument(
         "--log-level",
@@ -190,15 +193,14 @@ Examples:
     sev_order = {"high": 0, "medium": 1, "low": 2}
     min_sev = sev_order[args.min_severity]
 
-    if min_sev > 0:
-        report.result.contradictions = [
-            c
-            for c in report.result.contradictions
-            if sev_order.get(c.severity, 2) <= min_sev
-        ]
-        report.edge_cases = [
-            ec for ec in report.edge_cases if sev_order.get(ec.severity, 2) <= min_sev
-        ]
+    report.result.contradictions = [
+        c
+        for c in report.result.contradictions
+        if sev_order.get(c.severity, 2) <= min_sev
+    ]
+    report.edge_cases = [
+        ec for ec in report.edge_cases if sev_order.get(ec.severity, 2) <= min_sev
+    ]
 
     # ---- Verbose rule dump ----
     if args.verbose:
