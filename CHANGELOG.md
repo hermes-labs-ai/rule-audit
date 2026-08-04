@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-08-04
+
+### Fixed
+- Made `--min-severity high` exclude medium-severity contradictions and edge-case scenarios from CLI output.
+- Aligned `rule-audit --version` and the package `__version__` with the `0.1.2` project version.
+
+### Changed
+- Reworked the README and package metadata to describe the implemented detectors, limitations, and supported Python versions accurately.
+
+## [0.1.1] — 2026-05-31
+
+### Changed
+- Updated public documentation, project links, citation metadata, and Zenodo metadata for the Hermes Labs repository.
+- Removed internal launch-planning material from the public package repository.
+
 ## [0.1.0] — 2026-04-17
 
 Initial public release. Pure Python static analyzer for AI system prompts. Zero LLM dependency.
@@ -43,5 +58,7 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hermes-labs-ai/rule-audit/releases/tag/v0.1.0
