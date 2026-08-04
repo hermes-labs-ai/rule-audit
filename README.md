@@ -64,7 +64,7 @@ rule-audit --file system_prompt.txt --format json
 # Summary only (handy in CI)
 rule-audit --file system_prompt.txt --format summary
 
-# Only high-severity findings
+# Keep contradiction and edge-case detail at high severity
 rule-audit --file system_prompt.txt --min-severity high
 ```
 
@@ -140,7 +140,7 @@ For each finding, the report renders a concrete example scenario plus a suggeste
 ## Limitations / what it does NOT do
 
 - **Lexical parser, not a language model.** Parsing is sentence-splitting + modal-verb regex + keyword clusters. Rules that need semantic understanding (implied or narrative-embedded constraints) can be missed.
-- **It does not prove a prompt is exploitable.** A `CRITICAL` risk label means "many absolute rules and contradictions in a short prompt" by the lexical scoring — not a verified end-to-end exploit. For dynamic verification, pair it with [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) (jailbreak regression) and [`colony-probe`](https://github.com/hermes-labs-ai/colony-probe) (prompt-confidentiality probing).
+- **It does not prove a prompt is exploitable.** A `CRITICAL` risk label means "many absolute rules and contradictions in a short prompt" by the lexical scoring — not a verified end-to-end exploit. For dynamic verification, pair it with [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) (jailbreak regression).
 - **14 keyword clusters, curated by hand.** Uncommon domains may not trigger coverage-gap detection; extend `_KEYWORD_CLUSTERS` in `analyzer.py`.
 - **Absoluteness defaults to 0.5** for modal sentences with no qualifier keyword. A design choice — tune `_compute_absoluteness` for your corpus.
 - **English only** in this release.
@@ -151,7 +151,7 @@ For each finding, the report renders a concrete example scenario plus a suggeste
 
 ## How it relates to other tools
 
-- **`rule-audit` and [`lintlang`](https://github.com/roli-lpci/lintlang) are complementary, not duplicates.** `rule-audit` analyzes the *logical content* of a system prompt (contradictions, gaps, priority). `lintlang` lints the *structure* of agent configs and tool descriptions. Run both.
+- **`rule-audit` and [LintLang](https://github.com/hermes-labs-ai/lintlang) are complementary, not duplicates.** `rule-audit` analyzes the *logical content* of a system prompt (contradictions, gaps, priority). LintLang lints the *structure* of agent configs and tool descriptions. Run both.
 - **`rule-audit` is static; [`hermes-jailbench`](https://github.com/hermes-labs-ai/hermes-jailbench) is dynamic.** Static analysis finds candidate flaws; dynamic testing checks whether they are reachable against a live endpoint.
 
 ---

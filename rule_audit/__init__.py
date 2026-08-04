@@ -28,7 +28,7 @@ __all__ = [
     "AuditReport",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 __all__ = ["audit", "audit_file", "AuditReport", "Rule", "__version__"]
 
 # Library-level logger — users configure their own handlers.
