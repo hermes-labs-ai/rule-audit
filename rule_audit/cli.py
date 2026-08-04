@@ -26,7 +26,7 @@ import argparse
 import logging
 import sys
 
-from rule_audit import audit, audit_file, AuditReport
+from rule_audit import __version__, audit, audit_file, AuditReport
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ Examples:
     parser.add_argument(
         "--version",
         action="version",
-        version="rule-audit 0.1.0",
+        version=f"rule-audit {__version__}",
     )
 
     args = parser.parse_args(argv)
