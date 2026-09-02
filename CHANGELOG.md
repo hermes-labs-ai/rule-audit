@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-09-02
+
+### Added
+- Added a native pre-commit hook that audits matched prompt files and preserves the documented CLI exit semantics across multi-file runs.
+
+### Changed
+- Documented the copy-paste pre-commit consumer configuration and filename matching boundary.
+
 ## [0.1.2] — 2026-08-04
 
 ### Fixed
@@ -58,7 +66,8 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hermes-labs-ai/rule-audit/releases/tag/v0.1.0
