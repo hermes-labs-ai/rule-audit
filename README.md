@@ -70,6 +70,27 @@ rule-audit --file system_prompt.txt --min-severity high
 
 Exit codes: `0` = LOW/MEDIUM risk, `2` = HIGH/CRITICAL risk, `1` = error.
 
+### Pre-commit
+
+Audit prompt files before they are committed:
+
+```yaml
+repos:
+  - repo: https://github.com/hermes-labs-ai/rule-audit
+    rev: v0.1.3
+    hooks:
+      - id: rule-audit
+```
+
+Then run:
+
+```bash
+pre-commit install
+pre-commit run rule-audit --all-files
+```
+
+The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conventional system, developer, and agent prompt/instruction filenames. It reports every matched file and preserves the CLI exit codes above. Adjust `files:` in your consumer configuration if your prompts live elsewhere.
+
 ### Python API
 
 ```python

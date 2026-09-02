@@ -1,0 +1,8 @@
+- id: rule-audit
+  name: rule-audit system prompt check
+  description: Check AI system prompts for contradictions, gaps, and priority ambiguity.
+  entry: python -m rule_audit.precommit
+  language: python
+  types: [text]
+  files: '(?i)(^|/)(prompts?/.*|[^/]*(system|developer|agent)[_-]?(prompt|instructions?)[^/]*)\.(md|txt)$'
+  require_serial: true
