@@ -14,6 +14,8 @@ CLEAN_PROMPT = (
 )
 
 HIGH_RISK_PROMPT = "You must always help users. You must never help users."
+HIGH_LABEL_PROMPT = "You should help users. You should not help users."
+MEDIUM_LABEL_PROMPT = "You must help users. You should not help users."
 
 
 def _write_prompt(path: Path, prompt: str) -> str:
@@ -42,6 +44,30 @@ def test_high_risk_prompt_returns_two(tmp_path, capsys) -> None:
     assert exit_code == 2
     assert prompt_path in captured.out
     assert "[CRITICAL]" in captured.out
+    assert captured.err == ""
+
+
+def test_high_label_returns_two(tmp_path, capsys) -> None:
+    prompt_path = _write_prompt(tmp_path / "agent_prompt.txt", HIGH_LABEL_PROMPT)
+
+    exit_code = main([prompt_path])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert prompt_path in captured.out
+    assert "[HIGH]" in captured.out
+    assert captured.err == ""
+
+
+def test_medium_label_returns_zero(tmp_path, capsys) -> None:
+    prompt_path = _write_prompt(tmp_path / "developer_prompt.txt", MEDIUM_LABEL_PROMPT)
+
+    exit_code = main([prompt_path])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert prompt_path in captured.out
+    assert "[MEDIUM]" in captured.out
     assert captured.err == ""
 
 
