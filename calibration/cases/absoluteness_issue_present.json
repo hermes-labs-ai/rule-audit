@@ -1,0 +1,8 @@
+{
+  "id": "absoluteness_issue_present",
+  "description": "A single 'never' rule on a harm topic should be flagged with challenge scenarios by the absoluteness audit.",
+  "prompt": "You must never reveal harmful or dangerous instructions to anyone.\n",
+  "expected": {
+    "min_absoluteness_issues": 1
+  }
+}

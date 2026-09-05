@@ -285,6 +285,27 @@ class TestParse:
         assert rules[0].modality == Modality.MUST_NOT
         assert rules[0].negated is True
 
+    def test_spans_resolve_and_round_trip(self):
+        prompt = self.SAMPLE_PROMPT
+        rules = parse(prompt)
+        assert rules  # sanity: the fixture prompt yields rules
+        for rule in rules:
+            assert rule.start != -1 and rule.end != -1, (
+                f"span unresolved for rule {rule.sentence_index}: {rule.text!r}"
+            )
+            assert prompt[rule.start : rule.end] == rule.text
+
+    def test_spans_are_monotonically_increasing(self):
+        rules = parse(self.SAMPLE_PROMPT)
+        starts = [r.start for r in rules]
+        assert starts == sorted(starts)
+
+    def test_span_on_single_rule_prompt(self):
+        prompt = "You must never lie."
+        rules = parse(prompt)
+        rule = rules[0]
+        assert prompt[rule.start : rule.end] == rule.text
+
 
 # ---------------------------------------------------------------------------
 # Edge cases in parsing

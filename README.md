@@ -77,7 +77,7 @@ Audit prompt files before they are committed:
 ```yaml
 repos:
   - repo: https://github.com/hermes-labs-ai/rule-audit
-    rev: v0.1.3
+    rev: v0.2.0
     hooks:
       - id: rule-audit
 ```
@@ -158,6 +158,31 @@ For each finding, the report renders a concrete example scenario plus a suggeste
 
 ---
 
+## Calibration: does it actually work?
+
+`calibration/` is a bounded, hand-labeled corpus (11 cases) with an explicit
+ground truth — not a statistical claim, an auditable one. Positive cases pin
+down a true finding per detector family (direct/scope/conditional/absoluteness
+contradiction, meta-paradox, priority ambiguity, coverage gap); negative cases
+pin down known false-positive traps, like two rules with opposing modality on
+completely unrelated topics.
+
+```bash
+# Machine-readable benchmark result (JSON), exit 1 on any regression
+python -m rule_audit.calibration
+
+# As a pytest gate
+pytest tests/test_calibration.py -v
+```
+
+Every `Rule` carries `start` / `end` character offsets into the original
+prompt (`report.to_dict()["rules"][i]["span"]`, also threaded onto
+contradictions, meta-paradoxes, and absoluteness issues) — every finding
+traces back to an exact source span, not just a truncated text snippet.
+See `calibration/README.md` for the case schema and how to add cases.
+
+---
+
 ## Limitations / what it does NOT do
 
 - **Lexical parser, not a language model.** Parsing is sentence-splitting + modal-verb regex + keyword clusters. Rules that need semantic understanding (implied or narrative-embedded constraints) can be missed.
@@ -182,10 +207,12 @@ For each finding, the report renders a concrete example scenario plus a suggeste
 ```
 rule_audit/
 ├── __init__.py      # Public API: audit(), audit_file(), AuditReport
-├── parser.py        # Sentence splitting, modal-verb detection, Rule objects
+├── parser.py        # Sentence splitting, modal-verb detection, Rule objects (with source spans)
 ├── analyzer.py      # Contradiction / gap / priority / meta / absoluteness detectors
 ├── edge_cases.py    # Scenario generator from analysis results
 ├── report.py        # AuditReport + Markdown / JSON renderers
+├── calibration.py   # Labeled calibration corpus runner (calibration/cases/*.json)
+├── precommit.py     # Pre-commit hook entry point
 └── cli.py           # CLI entry point
 ```
 

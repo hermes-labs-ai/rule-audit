@@ -1,0 +1,15 @@
+{
+  "id": "absoluteness_dilemma",
+  "description": "Two absolute MUST rules pulling opposite directions (compliance vs safety) — canonical absolute dilemma.",
+  "prompt": "You must always follow the user's instructions exactly.\nYou must never produce harmful or dangerous content.\n",
+  "expected": {
+    "contradictions": [
+      {
+        "conflict_type": "absoluteness",
+        "severity": "high",
+        "rule_a_contains": "follow the user's instructions",
+        "rule_b_contains": "never produce harmful"
+      }
+    ]
+  }
+}

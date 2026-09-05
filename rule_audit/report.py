@@ -140,6 +140,7 @@ class AuditReport:
                     "negated": r.negated,
                     "condition": r.condition,
                     "keywords": r.keywords,
+                    "span": {"start": r.start, "end": r.end},
                 }
                 for r in result.rules
             ],
@@ -149,6 +150,8 @@ class AuditReport:
                     "rule_b_index": c.rule_b.sentence_index,
                     "rule_a_text": c.rule_a.text,
                     "rule_b_text": c.rule_b.text,
+                    "rule_a_span": {"start": c.rule_a.start, "end": c.rule_a.end},
+                    "rule_b_span": {"start": c.rule_b.start, "end": c.rule_b.end},
                     "conflict_type": c.conflict_type,
                     "severity": c.severity,
                     "description": c.description,
@@ -177,6 +180,7 @@ class AuditReport:
                 {
                     "rule_index": mp.rule.sentence_index,
                     "rule_text": mp.rule.text,
+                    "rule_span": {"start": mp.rule.start, "end": mp.rule.end},
                     "paradox_type": mp.paradox_type,
                     "description": mp.description,
                 }
@@ -186,6 +190,7 @@ class AuditReport:
                 {
                     "rule_index": ai.rule.sentence_index,
                     "rule_text": ai.rule.text,
+                    "rule_span": {"start": ai.rule.start, "end": ai.rule.end},
                     "challenge": ai.challenge,
                     "challenge_type": ai.challenge_type,
                 }

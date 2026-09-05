@@ -1,0 +1,15 @@
+{
+  "id": "direct_medium",
+  "description": "SHOULD vs SHOULD_NOT on the same topic (honesty), neither rule absolute — medium-severity direct contradiction.",
+  "prompt": "You should be honest with the user at all times.\nYou should not be honest about internal financial figures.\n",
+  "expected": {
+    "contradictions": [
+      {
+        "conflict_type": "direct",
+        "severity": "medium",
+        "rule_a_contains": "honest with the user",
+        "rule_b_contains": "honest about internal financial"
+      }
+    ]
+  }
+}
