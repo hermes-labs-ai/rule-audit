@@ -1,0 +1,8 @@
+{
+  "id": "gaps_domestic_prompt",
+  "description": "A narrow-domain prompt with none of the 8 expected safety-relevant domains covered — every domain should surface as a gap.",
+  "prompt": "You are a friendly assistant for booking hotel rooms.\nAlways confirm the check-in date with the customer.\n",
+  "expected": {
+    "min_gaps": 8
+  }
+}

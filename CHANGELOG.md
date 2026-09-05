@@ -4,7 +4,33 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] — 2026-09-04
+
+Problem: a flagged contradiction or gap was hard to trust or act on — there
+was no way to point at *where* in the prompt a rule came from, and no
+checkable evidence that the detectors actually catch what they claim to
+(versus five hand-picked demo samples).
+
+### Added
+- Source-span evidence: every `Rule` now carries `start`/`end` character offsets into the original prompt, surfaced in `AuditReport.to_dict()` for rules, contradictions, meta-paradoxes, and absoluteness issues — so a flagged finding points at exact source text instead of a paraphrase.
+- `calibration/` — a bounded, hand-labeled corpus (11 cases) with an explicit ground truth per detector family, plus true-negative false-positive controls (opposing modality on unrelated topics, a clean prompt).
+- `rule_audit.calibration` — runs the labeled corpus and emits a machine-readable benchmark result (`python -m rule_audit.calibration`); wired into CI as a regression gate (`tests/test_calibration.py`, `.github/workflows/ci.yml` `calibration` job).
+
+### Evidence
+- Calibration: **11/11 cases passed** (`pass_rate: 1.0`), `python -m rule_audit.calibration`, 2026-09-04.
+- Full suite: **196 tests passed**.
+- Boundary, unchanged by this release: detection is **lexical/regex-based, not semantic**, and **English only** — a `CRITICAL` label means "many absolute rules and contradictions by keyword/modality overlap," not a verified exploit. See README § Limitations.
+
+### Why 0.2.0, not 0.1.4
+This adds a new public module (`rule_audit.calibration`) and a new field on every emitted rule/finding (`start`/`end` spans) — both additive, backward-compatible surface changes a patch version shouldn't carry.
+
+## [0.1.3] — 2026-09-02
+
+### Added
+- Added a native pre-commit hook that audits matched prompt files and preserves the documented CLI exit semantics across multi-file runs.
+
+### Changed
+- Documented the copy-paste pre-commit consumer configuration and filename matching boundary.
 
 ## [0.1.2] — 2026-08-04
 
@@ -58,7 +84,9 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.3...v0.2.0
+[0.1.3]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hermes-labs-ai/rule-audit/releases/tag/v0.1.0

@@ -70,6 +70,27 @@ rule-audit --file system_prompt.txt --min-severity high
 
 Exit codes: `0` = LOW/MEDIUM risk, `2` = HIGH/CRITICAL risk, `1` = error.
 
+### Pre-commit
+
+Audit prompt files before they are committed:
+
+```yaml
+repos:
+  - repo: https://github.com/hermes-labs-ai/rule-audit
+    rev: v0.2.0
+    hooks:
+      - id: rule-audit
+```
+
+Then run:
+
+```bash
+pre-commit install
+pre-commit run rule-audit --all-files
+```
+
+The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conventional system, developer, and agent prompt/instruction filenames. It reports every matched file and preserves the CLI exit codes above. Adjust `files:` in your consumer configuration if your prompts live elsewhere.
+
 ### Python API
 
 ```python
@@ -137,6 +158,31 @@ For each finding, the report renders a concrete example scenario plus a suggeste
 
 ---
 
+## Calibration: does it actually work?
+
+`calibration/` is a bounded, hand-labeled corpus (11 cases) with an explicit
+ground truth — not a statistical claim, an auditable one. Positive cases pin
+down a true finding per detector family (direct/scope/conditional/absoluteness
+contradiction, meta-paradox, priority ambiguity, coverage gap); negative cases
+pin down known false-positive traps, like two rules with opposing modality on
+completely unrelated topics.
+
+```bash
+# Machine-readable benchmark result (JSON), exit 1 on any regression
+python -m rule_audit.calibration
+
+# As a pytest gate
+pytest tests/test_calibration.py -v
+```
+
+Every `Rule` carries `start` / `end` character offsets into the original
+prompt (`report.to_dict()["rules"][i]["span"]`, also threaded onto
+contradictions, meta-paradoxes, and absoluteness issues) — every finding
+traces back to an exact source span, not just a truncated text snippet.
+See `calibration/README.md` for the case schema and how to add cases.
+
+---
+
 ## Limitations / what it does NOT do
 
 - **Lexical parser, not a language model.** Parsing is sentence-splitting + modal-verb regex + keyword clusters. Rules that need semantic understanding (implied or narrative-embedded constraints) can be missed.
@@ -161,10 +207,12 @@ For each finding, the report renders a concrete example scenario plus a suggeste
 ```
 rule_audit/
 ├── __init__.py      # Public API: audit(), audit_file(), AuditReport
-├── parser.py        # Sentence splitting, modal-verb detection, Rule objects
+├── parser.py        # Sentence splitting, modal-verb detection, Rule objects (with source spans)
 ├── analyzer.py      # Contradiction / gap / priority / meta / absoluteness detectors
 ├── edge_cases.py    # Scenario generator from analysis results
 ├── report.py        # AuditReport + Markdown / JSON renderers
+├── calibration.py   # Labeled calibration corpus runner (calibration/cases/*.json)
+├── precommit.py     # Pre-commit hook entry point
 └── cli.py           # CLI entry point
 ```
 
@@ -197,7 +245,9 @@ MIT — see [LICENSE](LICENSE). © Hermes Labs 2026.
 
 ## About Hermes Labs
 
-Hermes Labs is an independent AI-reliability lab building open-source tools that catch silent failure modes in production AI. More at [hermes-labs.ai](https://hermes-labs.ai).
+[Hermes Labs](https://hermes-labs.ai) is an AI reliability engineering studio for product and engineering teams shipping production agents and LLM applications. We find the structural AI failures standard evals miss, then harden retrieval, memory, agents, and the language layers around production AI systems with runtime controls and defensible evidence.
+
+Browse the [open-source catalog](https://hermes-labs.ai/open-source) or contact [roli@hermes-labs.ai](mailto:roli@hermes-labs.ai).
 
 Not affiliated with NousResearch, Teknium, the Nous-Hermes LLM line, or any unrelated `hermes-*` project.
 

@@ -49,4 +49,4 @@ def test_cli_version_matches_package_version(capsys) -> None:
 
     assert exit_info.value.code == 0
     assert capsys.readouterr().out.strip() == f"rule-audit {__version__}"
-    assert __version__ == "0.1.2"
+    assert __version__ == "0.2.0"

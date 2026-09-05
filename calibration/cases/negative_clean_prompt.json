@@ -1,0 +1,9 @@
+{
+  "id": "negative_clean_prompt",
+  "description": "A simple, non-conflicting prompt. False-positive control: no contradiction or meta-paradox detector should fire.",
+  "prompt": "You are a helpful assistant for scheduling meetings.\nYou should confirm the time zone before booking.\n",
+  "expected": {
+    "max_contradictions": 0,
+    "max_meta_paradoxes": 0
+  }
+}

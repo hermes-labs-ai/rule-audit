@@ -1,0 +1,15 @@
+{
+  "id": "scope_conflict",
+  "description": "Universal MUST obligation vs a MUST rule that restricts the same domain to a subset — scope contradiction.",
+  "prompt": "You must always offer a refund to any customer who asks.\nYou must only offer refunds within the 30-day policy window.\n",
+  "expected": {
+    "contradictions": [
+      {
+        "conflict_type": "scope",
+        "severity": "medium",
+        "rule_a_contains": "always offer a refund",
+        "rule_b_contains": "only offer refunds"
+      }
+    ]
+  }
+}
