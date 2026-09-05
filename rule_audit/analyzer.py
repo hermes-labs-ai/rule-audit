@@ -528,8 +528,8 @@ def find_contradictions(rules: list[Rule]) -> list[Contradiction]:
             continue
 
         for detector in (
-            _is_direct_contradiction,
             _is_conditional_contradiction,
+            _is_direct_contradiction,
             _is_absoluteness_conflict,
             _is_scope_conflict,
         ):

@@ -5,7 +5,7 @@
   "expected": {
     "contradictions": [
       {
-        "conflict_type": "direct",
+        "conflict_type": "conditional",
         "severity": "high",
         "rule_a_contains": "answer every question",
         "rule_b_contains": "never answer it"

@@ -103,7 +103,9 @@ jobs:
         run: pytest tests/test_calibration.py -v --tb=short
 
       - name: Emit machine-readable benchmark result
-        run: python -m rule_audit.calibration | tee calibration-result.json
+        run: |
+          set -o pipefail
+          python -m rule_audit.calibration | tee calibration-result.json
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
