@@ -26,6 +26,23 @@ def test_min_severity_high_excludes_medium_contradictions(capsys) -> None:
     assert {scenario["severity"] for scenario in report["edge_cases"]} <= {"high"}
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        [],  # no prompt, no --file, no --demo
+        ["--format", "bogus"],  # invalid choice
+        ["inline prompt", "--file", "x.txt"],  # both inputs
+    ],
+)
+def test_usage_errors_exit_1_not_2(argv, capsys) -> None:
+    """Exit code 2 is reserved for HIGH/CRITICAL risk; usage errors must be 1."""
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv)
+
+    assert exit_info.value.code == 1
+    assert "error:" in capsys.readouterr().err
+
+
 def test_cli_version_matches_package_version(capsys) -> None:
     with pytest.raises(SystemExit) as exit_info:
         main(["--version"])
