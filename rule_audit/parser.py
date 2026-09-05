@@ -62,12 +62,15 @@ class Rule:
     action: str = ""  # what action/behavior is regulated
     condition: str = ""  # if/when clause, if present
     keywords: list[str] = field(default_factory=list)
+    start: int = -1  # char offset of this rule's text in the source prompt (-1 = unresolved)
+    end: int = -1  # char offset one past the last matched character (-1 = unresolved)
 
     def __repr__(self) -> str:
         return (
             f"Rule(idx={self.sentence_index}, modality={self.modality.value}, "
             f"type={self.rule_type.value}, abs={self.absoluteness:.2f}, "
-            f"negated={self.negated}, text={self.text[:60]!r})"
+            f"negated={self.negated}, span=({self.start}, {self.end}), "
+            f"text={self.text[:60]!r})"
         )
 
 
@@ -215,6 +218,32 @@ def _split_sentences(text: str) -> list[str]:
     return sentences
 
 
+def _find_span(prompt: str, sentence: str, cursor: int) -> tuple[int, int, int]:
+    """Locate `sentence` in `prompt` at or after `cursor`.
+
+    Returns (start, end, next_cursor). Sentences are searched for in document
+    order so repeated text resolves to distinct occurrences rather than
+    always matching the first one. Falls back to a whitespace-tolerant regex
+    (list-marker stripping and terminator splitting can collapse whitespace),
+    then to (-1, -1, cursor) if the sentence cannot be located at all —
+    callers must treat that as "span unresolved", not a bug.
+    """
+    idx = prompt.find(sentence, cursor)
+    if idx != -1:
+        end = idx + len(sentence)
+        return idx, end, end
+
+    pattern = r"\s+".join(re.escape(word) for word in sentence.split())
+    if pattern:
+        m = re.search(pattern, prompt[cursor:])
+        if m:
+            start = cursor + m.start()
+            end = cursor + m.end()
+            return start, end, end
+
+    return -1, -1, cursor
+
+
 # ---------------------------------------------------------------------------
 # Core parser
 # ---------------------------------------------------------------------------
@@ -300,11 +329,14 @@ def parse(prompt: str) -> list[Rule]:
     sentences = _split_sentences(prompt)
     logger.debug("parse: %d candidate sentences", len(sentences))
     rules: list[Rule] = []
+    cursor = 0
 
     for idx, sentence in enumerate(sentences):
         sentence = sentence.strip()
         if len(sentence) < 10:
             continue
+
+        start, end, cursor = _find_span(prompt, sentence, cursor)
 
         modality = _detect_modality(sentence)
         rule_type = _detect_rule_type(sentence)
@@ -331,6 +363,8 @@ def parse(prompt: str) -> list[Rule]:
             negated=negated,
             condition=condition,
             keywords=keywords,
+            start=start,
+            end=end,
         )
         rules.append(rule)
 

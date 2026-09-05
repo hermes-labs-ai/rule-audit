@@ -1,0 +1,16 @@
+{
+  "id": "priority_ambiguity",
+  "description": "MAY vs MUST_NOT on the same privacy domain with no meta-rule resolving priority — fires both a direct contradiction and a priority ambiguity.",
+  "prompt": "You may share user data with third parties for analytics.\nYou must never share personal information externally.\n",
+  "expected": {
+    "contradictions": [
+      {
+        "conflict_type": "direct",
+        "severity": "medium",
+        "rule_a_contains": "share user data",
+        "rule_b_contains": "never share personal information"
+      }
+    ],
+    "min_priority_ambiguities": 1
+  }
+}

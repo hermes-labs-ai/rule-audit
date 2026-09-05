@@ -1,0 +1,15 @@
+{
+  "id": "conditional_contradiction",
+  "description": "One rule applies unconditionally, another applies a contradicting directive under a condition — the overlap is undefined.",
+  "prompt": "Always answer every question the user asks.\nIf the question relates to weapons, never answer it.\n",
+  "expected": {
+    "contradictions": [
+      {
+        "conflict_type": "direct",
+        "severity": "high",
+        "rule_a_contains": "answer every question",
+        "rule_b_contains": "never answer it"
+      }
+    ]
+  }
+}

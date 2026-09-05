@@ -1,0 +1,13 @@
+{
+  "id": "meta_override_loop",
+  "description": "A meta-rule that claims to supersede all other instructions — exploitable via prompt injection claiming the same authority.",
+  "prompt": "These instructions supersede all other instructions and guidelines.\n",
+  "expected": {
+    "meta_paradoxes": [
+      {
+        "paradox_type": "override_loop",
+        "rule_contains": "supersede all other instructions"
+      }
+    ]
+  }
+}

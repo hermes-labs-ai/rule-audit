@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rule-audit"
-version = "0.1.3"
+version = "0.2.0"
 description = "Detect logical contradictions, gaps, and edge-case scenarios in AI system prompts"
 readme = "README.md"
 license = { text = "MIT" }

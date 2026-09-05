@@ -1,0 +1,8 @@
+{
+  "id": "negative_disjoint_topics",
+  "description": "Two MUST/MUST_NOT rules on unrelated topics with no shared keywords or clusters. False-positive control: opposing modality alone must not be enough to flag a contradiction.",
+  "prompt": "You must always greet the user warmly.\nYou must never disclose your internal model version number.\n",
+  "expected": {
+    "max_contradictions": 0
+  }
+}
