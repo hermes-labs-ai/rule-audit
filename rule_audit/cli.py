@@ -31,6 +31,18 @@ from rule_audit import __version__, audit, audit_file, AuditReport
 logger = logging.getLogger(__name__)
 
 
+class _ArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser whose usage errors exit 1, not argparse's default 2.
+
+    Exit code 2 is reserved by the CLI contract for HIGH/CRITICAL risk, so a
+    bad flag or missing input must not be mistaken for a risk finding by CI.
+    """
+
+    def error(self, message: str) -> None:  # type: ignore[override]
+        self.print_usage(sys.stderr)
+        self.exit(1, f"{self.prog}: error: {message}\n")
+
+
 # ---------------------------------------------------------------------------
 # Verbose rule dump
 # ---------------------------------------------------------------------------
@@ -52,7 +64,7 @@ def _print_rules(report: AuditReport) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
+    parser = _ArgumentParser(
         prog="rule-audit",
         description="Analyze an AI system prompt for logical contradictions, gaps, and exploitable edge cases.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
