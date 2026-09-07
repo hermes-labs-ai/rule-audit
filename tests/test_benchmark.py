@@ -676,6 +676,31 @@ def _readme_rows() -> dict[str, dict[str, object]]:
     return rows
 
 
+#: Matches a row of the "Low-severity contradictions" table: either a named
+#: sample (`` | `enterprise_rag.txt` | 5 | ``) or the catch-all default row
+#: (`` | all others | 0 | ``). Anchored per-line so it never matches a row of
+#: the main benchmark table above, which has more columns.
+_LOW_ROW = re.compile(
+    r"^\| (?:`(?P<name>[^`]+)`|(?P<other>all others)) \| (?P<low>\d+) \|$",
+    re.M,
+)
+
+
+def _readme_low_severity_counts() -> dict[str, int]:
+    text = BENCHMARKS_README.read_text(encoding="utf-8")
+    section = text.split("Low-severity contradictions", 1)[1]
+    named: dict[str, int] = {}
+    default: int | None = None
+    for match in _LOW_ROW.finditer(section):
+        low = int(match.group("low"))
+        if match.group("other"):
+            default = low
+        else:
+            named[match.group("name")] = low
+    assert default is not None, "README low-severity table is missing its 'all others' row"
+    return {name: named.get(name, default) for name in EXPECTED}
+
+
 class TestExactBenchmarkCounts:
     """The regression gate AGENTS.md promises: exact, per dimension, per sample."""
 
@@ -705,6 +730,11 @@ class TestExactBenchmarkCounts:
     def test_readme_explains_the_low_severity_remainder(self) -> None:
         text = BENCHMARKS_README.read_text(encoding="utf-8")
         assert "contradictions_low" in text
-        for filename, expected in EXPECTED.items():
-            if expected["low"]:
-                assert "`%s`" % filename in text.split("contradictions_low", 1)[1]
+
+    def test_readme_low_severity_table_matches_the_pinned_counts(self) -> None:
+        # Parses every displayed row of the "Low-severity contradictions"
+        # table (named samples and the "all others" default) and compares
+        # each against EXPECTED, not just whether a filename is mentioned.
+        assert _readme_low_severity_counts() == {
+            filename: expected["low"] for filename, expected in EXPECTED.items()
+        }
