@@ -241,21 +241,36 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
     `killpg` reaches every descendant. On Windows there is no `setsid`, so this
     shells out to `taskkill /T`, which walks the child tree by PID.
 
-    The return value is not decoration. Both mechanisms can fail — a race
-    against a process that has already exited, a permissions refusal, a
-    `taskkill` that is not on `PATH` — and the caller words its message
-    differently when the analyzer may still be alive. Claiming "stopped" for
-    something that was not stopped is the defect this function exists to
-    prevent; doing that in the failure branch would be the same defect in a
-    smaller place.
+    The POSIX branch signals the process group by *number*, not by looking it
+    up through `os.getpgid(process.pid)`. That lookup is a real race, not a
+    hypothetical one: `start_new_session=True` makes the adapter the leader of
+    a new session, so its PGID equals its PID at the moment it is created — we
+    already know the number. Querying it anyway fails exactly when it matters
+    most: if the adapter itself has already exited while its `rule-audit`
+    grandchild is still running and holding the inherited stdout/stderr pipes
+    (which is why `communicate()` timed out at all), `process.pid` no longer
+    names a live process, `getpgid` raises `ProcessLookupError`, and the
+    fallback `process.kill()` cannot reach a PID that is already gone —
+    leaving the live grandchild unsignalled. Killing by the known PGID number
+    has no such lookup step to race. (Found by `hermes-gate review`, critical,
+    after the lookup form shipped in both this wrapper and the Codex lane's.)
+
+    The return value is not decoration. Both mechanisms can fail — most
+    plausibly a permissions refusal, or `taskkill` not on `PATH` — and the
+    caller words its message differently when the analyzer may still be
+    alive. Claiming "stopped" for something that was not stopped is the
+    defect this function exists to prevent; doing that in the failure branch
+    would be the same defect in a smaller place.
     """
     if _NEW_SESSION and hasattr(os, "killpg"):
         try:
-            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            os.killpg(process.pid, signal.SIGKILL)
             return True
         except (OSError, ProcessLookupError):
-            # Already gone, or no permission — fall through to the direct kill,
-            # which is still better than leaving the adapter alive.
+            # The whole group is already gone (nothing left to signal — the
+            # good case) or signalling it was refused. Either way, fall
+            # through to the direct kill on `process.pid` itself, which is
+            # still strictly better than doing nothing.
             pass
     elif os.name == "nt":
         try:
