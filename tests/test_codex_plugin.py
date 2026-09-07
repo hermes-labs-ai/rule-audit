@@ -1131,15 +1131,16 @@ def test_the_readme_does_not_install_from_a_ref_it_says_has_no_index():
     """The documented install command has to work on the day it is read.
 
     `codex plugin marketplace add` git-clones and then looks for
-    `.agents/plugins/marketplace.json` at the clone root, which is why the
-    README explains that `main` does not have that file yet — and then told the
-    reader to pass `--ref main`, the one ref its own paragraph rules out. Both
-    places that document the pre-merge command are checked, because the root
+    `.agents/plugins/marketplace.json` at the clone root. Before the merge the
+    README explained that `main` did not have that file yet — and then told the
+    reader to pass `--ref main`, the one ref its own paragraph ruled out. Both
+    places that document the install command are checked, because the root
     README repeats it.
 
-    The constraint retires itself: once the prose stops claiming `main` has no
-    index — which is true the moment this merges — `--ref main` and the bare
-    form are correct again and this asserts nothing.
+    The constraint flips at the merge: once the prose stops claiming `main` has
+    no index — which is true the moment this merges — the bare form is the
+    correct install, and what has to be pinned is that no documented command
+    still sends the reader to the pre-merge feature branch.
     """
     root_readme = ROOT / "README.md"
     commands = [
@@ -1151,7 +1152,18 @@ def test_the_readme_does_not_install_from_a_ref_it_says_has_no_index():
     assert len(commands) >= 2, "both READMEs should document the install command"
 
     if "does not exist on `main` yet" not in _flat(README.read_text(encoding="utf-8")):
-        return  # merged: the default branch has the index, nothing to constrain
+        # Merged: the default branch carries the index, so the bare form is the
+        # install, and a `--ref` naming the feature branch is now a dead ref
+        # that installs a stale copy of this plugin.
+        assert all("--ref feat/" not in command for command in commands), commands
+        assert all(
+            command == "codex plugin marketplace add hermes-labs-ai/rule-audit"
+            for command in commands
+        ), commands
+        assert "codex plugin marketplace add /path/to/rule-audit" in README.read_text(
+            encoding="utf-8"
+        )
+        return
 
     # `--ref main` is the one ref the prose rules out. The bare form is allowed
     # to appear beside it as the post-merge example, which is why this checks
