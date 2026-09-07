@@ -261,6 +261,18 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
     alive. Claiming "stopped" for something that was not stopped is the
     defect this function exists to prevent; doing that in the failure branch
     would be the same defect in a smaller place.
+
+    The final fallback kill is guarded for the same reason. `process.pid` can
+    already be gone by the time execution reaches it — that is exactly the
+    race the PGID fix above closes for the group, but `process.kill()` on the
+    adapter's own PID can independently raise `ProcessLookupError` in the
+    same race (the adapter died first; only its grandchild survived). Left
+    unguarded, that exception would escape this function entirely, replacing
+    the `TimeoutExpired` `_run_adapter` is in the middle of handling — so
+    `audit()` would never reach its timeout message at all, reporting a
+    confusing raw `OSError` instead of the true "the analyzer may still be
+    running" outcome. (Found by `hermes-gate review`, critical, on this exact
+    line, immediately after the PGID fix above shipped.)
     """
     if _NEW_SESSION and hasattr(os, "killpg"):
         try:
@@ -284,7 +296,13 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
                 return True
         except (OSError, subprocess.SubprocessError):
             pass
-    process.kill()
+    try:
+        process.kill()
+    except (OSError, ProcessLookupError):
+        # Already gone. Whatever was still alive when the mechanisms above
+        # ran either got signalled by them or was never reachable this way;
+        # there is nothing further this function can do.
+        pass
     return False
 
 

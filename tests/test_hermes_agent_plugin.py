@@ -600,6 +600,35 @@ def test_kill_process_tree_reports_whether_it_reached_the_tree(monkeypatch):
         assert killed == ["direct"]
 
 
+def test_kill_process_tree_survives_a_final_kill_that_also_fails(monkeypatch):
+    """The direct fallback `process.kill()` can independently race and lose.
+
+    `_kill_process_tree` is called from inside `except subprocess.TimeoutExpired`
+    in `_run_adapter`. An exception escaping it here would replace the
+    `TimeoutExpired` that block is handling, so `audit()` would never reach its
+    timeout message — the user would see a raw `OSError` instead of the honest
+    "may still be running" outcome this whole function exists to produce.
+    """
+    wrapper = _load_wrapper()
+
+    class _AlreadyGone:
+        pid = 4242
+
+        def kill(self):
+            raise ProcessLookupError("no such process")
+
+    # Force execution to reach the final fallback regardless of platform: on
+    # POSIX, make the process-group branch also fail first.
+    if wrapper._NEW_SESSION:
+        monkeypatch.setattr(
+            wrapper.os,
+            "killpg",
+            lambda pgid, sig: (_ for _ in ()).throw(OSError("no such process group")),
+        )
+    result = wrapper._kill_process_tree(_AlreadyGone())
+    assert result is False
+
+
 @pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups are POSIX-only")
 def test_kill_process_tree_never_looks_up_the_process_group(monkeypatch):
     """The exact regression `hermes-gate review` found: `getpgid(process.pid)`
