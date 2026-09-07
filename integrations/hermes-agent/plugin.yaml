@@ -1,0 +1,25 @@
+# Hermes Agent plugin manifest.
+#
+# `name` decides the install directory (~/.hermes/plugins/rule-audit/) and the
+# key used by `hermes plugins enable/disable/remove`.
+#
+# No `provides_tools`: this plugin registers no model tool, so it adds nothing
+# to the tool schema sent on every API call. Hermes' own AGENTS.md calls that
+# schema the one place every addition is paid for on every call; an audit the
+# user asks for by name does not belong there.
+#
+# No `provides_hooks`: nothing runs unless the user types the command.
+#
+# No `capabilities`: the plugin requests no privileged host surface. It does
+# not override tools, does not touch the LLM, and does not act on chat
+# platforms, so `hermes plugins enable rule-audit` has nothing to consent to.
+name: rule-audit
+version: 0.1.0
+description: Audit a system prompt for contradictions, priority conflicts and coverage gaps
+author: Hermes Labs
+license: MIT
+homepage: https://github.com/hermes-labs-ai/rule-audit
+manifest_version: 2
+tags:
+  - prompt-engineering
+  - static-analysis
