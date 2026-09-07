@@ -694,9 +694,13 @@ def _readme_low_severity_counts() -> dict[str, int]:
     for match in _LOW_ROW.finditer(section):
         low = int(match.group("low"))
         if match.group("other"):
+            assert default is None, "README low-severity table has more than one 'all others' row"
             default = low
         else:
-            named[match.group("name")] = low
+            name = match.group("name")
+            assert name in EXPECTED, f"README low-severity table names an unknown sample: {name}"
+            assert name not in named, f"README low-severity table repeats a row for {name}"
+            named[name] = low
     assert default is not None, "README low-severity table is missing its 'all others' row"
     return {name: named.get(name, default) for name in EXPECTED}
 
