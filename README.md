@@ -155,6 +155,30 @@ See [`integrations/hermes-agent/README.md`](integrations/hermes-agent/README.md)
 for install, disable and uninstall, and for the host-specific details — why the
 plugin registers no model tool, and where the report is displayed.
 
+### Codex
+
+A plugin adds the skill to [Codex](https://github.com/openai/codex). The
+repository is itself a Codex plugin marketplace:
+
+```bash
+codex plugin marketplace add hermes-labs-ai/rule-audit
+codex plugin add rule-audit@rule-audit
+```
+
+```
+> Audit prompts/support_agent.md with $rule-audit:audit
+```
+
+Type `$` or `/skills` to pick the skill — either way it is inserted into the
+composer and nothing runs until you send it. Codex then runs the bundled adapter
+in the normal read-only sandbox and summarises the findings. Nothing runs unless
+you ask for it, and there is no hook.
+
+See [`integrations/codex/README.md`](integrations/codex/README.md) for install,
+disable and uninstall, for what an installed skill costs on every turn, and for
+the host-specific details — why the wrapper, rather than the skill text, owns
+every guarantee.
+
 ### Machine-readable result envelope
 
 For tooling that compares results across tools, the same audit can be emitted
