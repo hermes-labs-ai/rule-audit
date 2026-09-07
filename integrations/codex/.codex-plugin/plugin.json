@@ -1,0 +1,14 @@
+{
+  "name": "rule-audit",
+  "version": "0.1.0",
+  "description": "On-demand static analysis of AI system prompts: audit a prompt file for contradictions, coverage gaps, priority ambiguities and meta-paradoxes, locally and offline.",
+  "keywords": ["prompt-engineering", "ai-safety", "static-analysis", "system-prompt", "audit", "developer-tools"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "rule-audit",
+    "shortDescription": "Audit a system prompt for contradictions and coverage gaps, offline.",
+    "developerName": "Hermes Labs",
+    "category": "developer-tools",
+    "websiteUrl": "https://github.com/hermes-labs-ai/rule-audit"
+  }
+}

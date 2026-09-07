@@ -11,7 +11,10 @@ Why an adapter script rather than letting the model compose the command:
 * **Bounded output.** A real prompt file can produce thousands of findings
   (measured: 1,875 contradictions from a single 124-rule document). Piping that
   into an agent's context is not useful. This caps every family and always
-  prints the exact command to see the rest.
+  prints the exact command to see the rest. The bound is applied to the
+  analyzer's output *while the analyzer runs*, not to a buffer this process has
+  already paid for in full: the JSON behind a 4 KB report has been measured at
+  318 MB. See `MAX_OUTPUT_BYTES`.
 * **Bounded input.** `rule_audit.audit` is O(n^2) in parsed rules with no size
   guard of its own. Large inputs are refused with an actionable message rather
   than stalling the session. See `MAX_INPUT_BYTES`.
@@ -36,6 +39,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 #: Minimum rule-audit release this adapter is written against. 0.3.1 is the
@@ -48,6 +53,42 @@ MIN_VERSION = (0, 3, 1)
 #: 248 KB is ~54 s and several GB of resident memory. A prompt file this large
 #: is better audited deliberately than from inside an interactive session.
 MAX_INPUT_BYTES = 64 * 1024
+
+#: Hard ceiling on what the analyzer may hand back on stdout, enforced while
+#: the pipe is being read rather than after it has all arrived. Bounding the
+#: input does not bound the report: measured on this adapter's own fixtures,
+#: all inside the 64 KB input cap, a 50 KB documentation file yields 1.0 MB of
+#: JSON, a 16 KB file of dense imperative rules yields 23 MB (143 MB resident),
+#: and a 64 KB one — the largest input this adapter accepts, and exactly the
+#: shape rule-audit is calibrated for — yields 318 MB and peaks at 1.8 GB
+#: resident to render the same 4 KB of Markdown. 32 MB is ~32x the largest
+#: realistic report measured and holds the parse to roughly 200 MB.
+MAX_OUTPUT_BYTES = 32 * 1024 * 1024
+
+#: Hard ceiling on analyzer stderr, which is quoted back inside the failure
+#: messages below. Without it the buffer that explains why an audit failed
+#: could be the thing that exhausts memory — the failure path has to be bounded
+#: for the same reason the success path does.
+MAX_STDERR_BYTES = 64 * 1024
+
+#: Wall-clock ceiling for the analyzer itself. `codex_audit.py` sets a shorter
+#: one around this whole process; this is the backstop when the adapter is run
+#: directly.
+ANALYZER_TIMEOUT_SECONDS = 120
+
+#: Read size for the bounded reads. Large enough not to read a multi-megabyte
+#: report a syscall at a time, small enough that passing a cap is noticed
+#: within one read of it happening.
+_READ_CHUNK_BYTES = 64 * 1024
+
+#: Granularity of the wait loop. Exceeding a cap is signalled through an event,
+#: so this paces only the check for *normal* completion: milliseconds against
+#: an audit measured in seconds.
+_POLL_SECONDS = 0.02
+
+#: Backstop for collecting the drained pipes and the exit status once the
+#: analyzer has finished or been killed. Both are already over by then.
+_DRAIN_SECONDS = 10
 
 #: Per-family cap on rendered findings. The counts above the table are always
 #: the true totals; only the listing is truncated.
@@ -425,6 +466,206 @@ def _snapshot_input(path: str) -> Tuple[Optional[str], Optional[str]]:
     return snapshot_path, None
 
 
+def _decode(raw: bytes) -> str:
+    """Decode analyzer output that was deliberately read as bytes.
+
+    `text=True` would hand back `str` and leave the cap counting characters,
+    which is not a bound on anything a pipe carries. Decoding here instead
+    keeps the bound in bytes. The CLI writes its report with `json.dumps`
+    defaults, which is ASCII, and ASCII is UTF-8; stderr is a human message
+    where a replaced byte is better than an exception raised somewhere it
+    cannot be explained. The newline translation is the one `text=True` did.
+    """
+    return raw.decode("utf-8", "replace").replace("\r\n", "\n")
+
+
+class _BoundedPipeReader(threading.Thread):
+    """Drain one pipe, keeping at most `limit` bytes of what comes out of it.
+
+    Two properties matter here and neither survives `subprocess.run`. What is
+    retained is bounded whatever the child writes, because the excess is
+    dropped as it arrives rather than buffered whole and sliced afterwards.
+    And the pipe goes on being drained past the cap: an unread pipe blocks its
+    writer inside the kernel, and a child blocked on a full pipe cannot be
+    observed to have exceeded anything, cannot be waited on, and would turn
+    this into the stall it exists to prevent.
+
+    `overflowed` is latched from the number of bytes *produced*, not derived
+    from the number kept: producing exactly `limit` bytes and producing more
+    than `limit` are different facts, and only the second is a failure.
+    """
+
+    def __init__(
+        self,
+        stream: Any,
+        limit: int,
+        signal_event: Optional[threading.Event] = None,
+    ) -> None:
+        super().__init__(daemon=True)
+        self._stream = stream
+        self._signal = signal_event
+        self._chunks: List[bytes] = []
+        self._kept = 0
+        self.limit = limit
+        self.produced = 0
+        self.overflowed = False
+
+    def run(self) -> None:
+        # `read1` returns as soon as anything is available, so a cap is noticed
+        # when it is passed rather than when a whole chunk has arrived.
+        read = getattr(self._stream, "read1", None) or self._stream.read
+        try:
+            while True:
+                chunk = read(_READ_CHUNK_BYTES)
+                if not chunk:
+                    break
+                self.produced += len(chunk)
+                room = self.limit - self._kept
+                if room > 0:
+                    self._chunks.append(chunk[:room])
+                    self._kept += min(room, len(chunk))
+                if self.produced > self.limit and not self.overflowed:
+                    self.overflowed = True
+                    if self._signal is not None:
+                        self._signal.set()
+        except (OSError, ValueError):
+            # The pipe went away under the read — the kill below closed it, or
+            # the child exited between the read and the close. What was read
+            # before that is what there is.
+            pass
+        finally:
+            try:
+                self._stream.close()
+            except (OSError, ValueError):
+                pass
+
+    def value(self) -> bytes:
+        return b"".join(self._chunks)
+
+
+def _terminate_analyzer(process: "subprocess.Popen[bytes]") -> None:
+    """Stop the analyzer, and anything under it, as promptly as the platform allows.
+
+    The analyzer is a direct child — `rule-audit`, or a Python running
+    `-m rule_audit` — and it starts nothing itself, so on POSIX signalling the
+    child is signalling the tree. It is deliberately not given a session of its
+    own: `codex_audit.py` bounds the whole turn by killing the process group it
+    puts this process into, and an analyzer that had left that group would
+    survive exactly the kill meant to stop it — the defect
+    `tests/test_codex_plugin.py` pins for the wrapper. On Windows there is no
+    process group to inherit, so `taskkill /F /T` walks the child tree by PID,
+    which also covers a runtime that does spawn.
+    """
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            pass
+    try:
+        process.kill()
+    except OSError:
+        # Already gone, and that is the good case: `ProcessLookupError` is an
+        # `OSError`, and there is nothing left to stop.
+        pass
+
+
+def _run_analyzer(
+    command: List[str], snapshot_path: str, display_path: str
+) -> Tuple[Optional["subprocess.CompletedProcess[str]"], Optional[str]]:
+    """Run the analyzer under a hard byte bound on what it can hand back.
+
+    `subprocess.run` cannot express this. It buffers the whole of stdout in
+    this process and only then returns, so every cap applied afterwards is a
+    cap on something already paid for in full. That is not academic: the report
+    is bounded by construction at five findings per family, but the JSON it is
+    rendered from is bounded by nothing, and at the input cap it has been
+    measured at 318 MB and 1.8 GB resident. See `MAX_OUTPUT_BYTES`.
+
+    Exceeding either cap stops the analyzer rather than merely truncating what
+    is kept — a truncated buffer is not a bound on a process that goes on
+    writing — and is reported as a failure with the untruncated command to run
+    instead. Returns `(completed, None)` when the analyzer finished inside the
+    bounds and `(None, message)` when it did not.
+    """
+    try:
+        process = subprocess.Popen(
+            command + _cli_arguments(snapshot_path),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return None, "could not run %s: %s" % (" ".join(command), error)
+
+    exceeded = threading.Event()
+    readers = (
+        ("stdout", _BoundedPipeReader(process.stdout, MAX_OUTPUT_BYTES, exceeded)),
+        ("stderr", _BoundedPipeReader(process.stderr, MAX_STDERR_BYTES, exceeded)),
+    )
+    for _, reader in readers:
+        reader.start()
+
+    deadline = time.monotonic() + ANALYZER_TIMEOUT_SECONDS
+    timed_out = False
+    while True:
+        if exceeded.is_set() or process.poll() is not None:
+            break
+        if time.monotonic() >= deadline:
+            timed_out = True
+            break
+        # Waiting on the event rather than sleeping is what makes the kill
+        # prompt: a reader sets it the moment its cap is passed.
+        exceeded.wait(_POLL_SECONDS)
+
+    if timed_out or exceeded.is_set():
+        _terminate_analyzer(process)
+    # The writer is dead or being killed, so both pipes reach EOF and both
+    # readers end; the window is a backstop, not a budget.
+    for _, reader in readers:
+        reader.join(_DRAIN_SECONDS)
+    try:
+        process.wait(timeout=_DRAIN_SECONDS)
+    except subprocess.TimeoutExpired:  # pragma: no cover - defensive
+        pass
+
+    # Read the flags again after the join rather than trusting the loop's view
+    # of them: an analyzer that writes past a cap and exits immediately can be
+    # seen to have exited first, and those bytes are still an overflow.
+    for name, reader in readers:
+        if reader.overflowed:
+            return None, (
+                "the audit of %s was stopped: %s wrote more than %d bytes to "
+                "%s, which is more than this command will hold. Run "
+                "`rule-audit --file=%s` directly to audit it anyway."
+                % (
+                    display_path,
+                    " ".join(command),
+                    reader.limit,
+                    name,
+                    _shell_quote(display_path),
+                )
+            )
+    if timed_out:
+        return None, "audit of %s timed out after %ds." % (
+            display_path,
+            ANALYZER_TIMEOUT_SECONDS,
+        )
+
+    return (
+        subprocess.CompletedProcess(
+            process.args,
+            process.returncode,
+            stdout=_decode(readers[0][1].value()),
+            stderr=_decode(readers[1][1].value()),
+        ),
+        None,
+    )
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = _ArgumentParser(
         prog="audit_report.py",
@@ -461,23 +702,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
 
     try:
-        try:
-            completed = subprocess.run(
-                command + _cli_arguments(snapshot_path),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=120,
-            )
-        except subprocess.TimeoutExpired:
-            return _fail("audit of %s timed out after 120s." % path)
-        except (OSError, subprocess.SubprocessError) as error:
-            return _fail("could not run %s: %s" % (" ".join(command), error))
+        completed, failure = _run_analyzer(command, snapshot_path, path)
     finally:
         try:
             os.unlink(snapshot_path)
         except OSError:
             pass
+    if failure is not None:
+        return _fail(failure)
+    assert completed is not None
 
     if completed.returncode == 1:
         return _fail((completed.stderr or "the audit failed.").strip())

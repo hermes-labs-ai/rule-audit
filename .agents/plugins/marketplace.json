@@ -1,0 +1,11 @@
+{
+  "name": "rule-audit",
+  "interface": { "displayName": "rule-audit (Hermes Labs)" },
+  "plugins": [
+    {
+      "name": "rule-audit",
+      "category": "developer-tools",
+      "source": { "source": "local", "path": "./integrations/codex" }
+    }
+  ]
+}

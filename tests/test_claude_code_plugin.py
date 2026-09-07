@@ -143,6 +143,32 @@ def test_non_regular_file_is_refused_before_runtime_resolution(
     assert "not a regular file" in capsys.readouterr().err
 
 
+def test_audit_uses_a_stable_bounded_snapshot_if_the_path_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = _load_adapter()
+    target = tmp_path / "prompt.md"
+    original = b"You must always answer accurately.\n"
+    target.write_bytes(original)
+    captured: dict[str, Path] = {}
+
+    monkeypatch.setattr(adapter, "resolve_runtime", lambda: (["rule-audit"], []))
+
+    def inspect_snapshot(command: list[str], **_kwargs):
+        file_option = next(part for part in command if part.startswith("--file="))
+        snapshot = Path(file_option.split("=", 1)[1])
+        captured["path"] = snapshot
+        assert snapshot != target
+        target.write_bytes(b"x" * (adapter.MAX_INPUT_BYTES + 1))
+        assert snapshot.read_bytes() == original
+        raise OSError("stop after inspecting the snapshot")
+
+    monkeypatch.setattr(adapter.subprocess, "run", inspect_snapshot)
+
+    assert adapter.main([str(target)]) == 1
+    assert not captured["path"].exists()
+
+
 def test_oversized_input_is_refused_with_a_way_forward(tmp_path: Path) -> None:
     adapter = _load_adapter()
     target = tmp_path / "huge.md"
