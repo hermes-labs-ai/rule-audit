@@ -100,6 +100,7 @@ rule_audit/
   edge_cases.py     # Concrete scenario generator from AnalysisResult
   report.py         # AuditReport + Markdown / JSON renderers
   cli.py            # Argparse CLI
+  evidence.py       # Result envelope emitter (python -m rule_audit.evidence); no detection logic
   py.typed          # PEP 561 type-hint marker
 
 tests/              # pytest — 174 tests, all pure Python
