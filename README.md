@@ -132,6 +132,29 @@ See [`integrations/gemini-cli/README.md`](integrations/gemini-cli/README.md) for
 install, disable and uninstall, and for the host-specific details — why the
 command exits 0, and why the report is fenced in explicit markers.
 
+### Hermes Agent
+
+A plugin adds the command to [Hermes Agent](https://github.com/NousResearch/hermes-agent):
+
+```bash
+hermes plugins install hermes-labs-ai/rule-audit/integrations/hermes-agent
+hermes plugins enable rule-audit
+```
+
+```
+/rule-audit                       # audits your own SOUL.md
+/rule-audit prompts/support.md    # audits any prompt file
+```
+
+Typed bare it audits your `SOUL.md` — the first section of the Hermes system
+prompt, and a system prompt in exactly the sense this tool is calibrated for.
+The report goes to you, not to the model. Nothing runs unless you ask for it,
+and there is no hook.
+
+See [`integrations/hermes-agent/README.md`](integrations/hermes-agent/README.md)
+for install, disable and uninstall, and for the host-specific details — why the
+plugin registers no model tool, and where the report is displayed.
+
 ### Machine-readable result envelope
 
 For tooling that compares results across tools, the same audit can be emitted
