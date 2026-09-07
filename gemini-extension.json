@@ -1,0 +1,6 @@
+{
+  "name": "rule-audit",
+  "version": "0.1.0",
+  "description": "Audit an AI system prompt file for contradictions, coverage gaps and priority ambiguities.",
+  "contextFileName": []
+}

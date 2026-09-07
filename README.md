@@ -112,6 +112,26 @@ See [`integrations/claude-code/README.md`](integrations/claude-code/README.md)
 for install, disable and uninstall, and for the measurements behind the decision
 to ship a command rather than an automatic edit-time hook.
 
+### Gemini CLI
+
+An extension adds the same command to Gemini CLI:
+
+```bash
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
+```
+
+```
+/rule-audit:audit prompts/support_agent.md
+```
+
+Gemini CLI shows you the exact command and asks you to approve it, then runs
+this CLI locally and hands the model the same bounded report. Nothing runs
+unless you ask for it, and there is no hook.
+
+See [`integrations/gemini-cli/README.md`](integrations/gemini-cli/README.md) for
+install, disable and uninstall, and for the host-specific details — why the
+command exits 0, and why the report is fenced in explicit markers.
+
 ### Machine-readable result envelope
 
 For tooling that compares results across tools, the same audit can be emitted

@@ -126,6 +126,23 @@ def test_directory_is_refused() -> None:
     assert "is a directory" in result.stderr
 
 
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="FIFO creation is unavailable")
+def test_non_regular_file_is_refused_before_runtime_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    adapter = _load_adapter()
+    target = tmp_path / "prompt.fifo"
+    os.mkfifo(target)
+
+    def unexpected_runtime_resolution():
+        raise AssertionError("non-regular input reached runtime resolution")
+
+    monkeypatch.setattr(adapter, "resolve_runtime", unexpected_runtime_resolution)
+
+    assert adapter.main([str(target)]) == 1
+    assert "not a regular file" in capsys.readouterr().err
+
+
 def test_oversized_input_is_refused_with_a_way_forward(tmp_path: Path) -> None:
     adapter = _load_adapter()
     target = tmp_path / "huge.md"
