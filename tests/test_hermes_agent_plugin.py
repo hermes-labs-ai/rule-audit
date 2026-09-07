@@ -15,6 +15,7 @@ the rest of the tests down with it.
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import subprocess
 import sys
@@ -507,6 +508,138 @@ def test_the_timeout_bounds_the_session_not_just_the_audit():
     wrapper = _load_wrapper()
     assert wrapper.TIMEOUT_SECONDS == 60
     assert wrapper.TIMEOUT_SECONDS < 120
+
+
+# ---------------------------------------------------------------------------
+# The timeout must kill the analyzer, not just the adapter — same bug and fix
+# as the Codex lane's `codex_audit.py::_kill_process_tree`, found there first
+# by `hermes-gate review`, then confirmed here on the identical shape.
+# ---------------------------------------------------------------------------
+
+
+def test_the_timeout_message_does_not_claim_a_kill_that_failed(monkeypatch):
+    """Both kill mechanisms can fail, and on Windows there is no process group.
+
+    "was stopped" for something still running is the same defect the
+    process-tree kill exists to prevent, just in a smaller place — so the
+    message is worded from what actually happened, not from what was
+    attempted.
+    """
+    wrapper = _load_wrapper()
+
+    class _Zombie:
+        args = ["fake"]
+        pid = -1
+
+        def communicate(self, timeout=None):
+            raise subprocess.TimeoutExpired(self.args, timeout)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(wrapper.subprocess, "Popen", lambda argv, **kwargs: _Zombie())
+    monkeypatch.setattr(wrapper, "_kill_process_tree", lambda process: False)
+    out = wrapper.audit("x.md")
+    assert "may still be running" in out
+    assert "was stopped" not in out
+    assert "[rule-audit status 1]" in out
+
+
+def test_the_timeout_message_does_claim_a_kill_that_worked(monkeypatch):
+    """The other half of the pair, so the wording cannot be pinned to one branch."""
+    wrapper = _load_wrapper()
+
+    class _Zombie:
+        args = ["fake"]
+        pid = -1
+
+        def communicate(self, timeout=None):
+            raise subprocess.TimeoutExpired(self.args, timeout)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(wrapper.subprocess, "Popen", lambda argv, **kwargs: _Zombie())
+    monkeypatch.setattr(wrapper, "_kill_process_tree", lambda process: True)
+    out = wrapper.audit("x.md")
+    assert "was stopped" in out
+    assert "may still be running" not in out
+    assert "[rule-audit status 1]" in out
+
+
+def test_kill_process_tree_reports_whether_it_reached_the_tree(monkeypatch):
+    """The return value is the message's only source of truth."""
+    wrapper = _load_wrapper()
+    killed = []
+
+    class _Fake:
+        pid = 4242
+
+        def kill(self):
+            killed.append("direct")
+
+    if wrapper._NEW_SESSION:
+        monkeypatch.setattr(wrapper.os, "getpgid", lambda pid: pid)
+        monkeypatch.setattr(wrapper.os, "killpg", lambda pgid, sig: None)
+        assert wrapper._kill_process_tree(_Fake()) is True
+        assert killed == []
+
+        def _boom(pgid, sig):
+            raise OSError("no such process group")
+
+        monkeypatch.setattr(wrapper.os, "killpg", _boom)
+        assert wrapper._kill_process_tree(_Fake()) is False
+        assert killed == ["direct"]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
+def test_the_timeout_kills_the_analyzer_and_not_just_the_adapter(tmp_path, monkeypatch):
+    """The slow half is the grandchild, so killing the child proves nothing.
+
+    This module starts `audit_report.py`, which starts `rule-audit`. The
+    O(n^2), CPU-bound work is in the grandchild. `subprocess.run(timeout=...)`
+    kills only its direct child, so the analyzer would keep running — while
+    this reports that the audit "was stopped". That is a false statement and a
+    runaway process at once.
+
+    The fake adapter below stands in for the real one: it spawns a long-lived
+    grandchild that writes its pid where the test can see it, then hangs. If
+    the kill does not reach the whole process group, that pid is still alive
+    afterwards.
+    """
+    import time as _time
+
+    wrapper = _load_wrapper()
+    pidfile = tmp_path / "grandchild.pid"
+    fake_adapter = tmp_path / "fake_adapter.py"
+    fake_adapter.write_text(
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(600)'])\n"
+        "open(%r, 'w').write(str(child.pid))\n"
+        "time.sleep(600)\n" % str(pidfile),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(wrapper, "_ADAPTER_PATH", fake_adapter)
+    monkeypatch.setattr(wrapper, "TIMEOUT_SECONDS", 3)
+
+    out = wrapper.audit(str(tmp_path / "irrelevant.md"))
+    assert "did not finish within 3s" in out
+    assert "was stopped" in out
+
+    assert pidfile.is_file(), "the fake adapter never started its grandchild"
+    grandchild = int(pidfile.read_text())
+    deadline = _time.time() + 10
+    while _time.time() < deadline:
+        # `kill -0` probes for existence without signalling.
+        if subprocess.run(["kill", "-0", str(grandchild)], capture_output=True).returncode != 0:
+            break
+        _time.sleep(0.2)
+    else:
+        subprocess.run(["kill", "-9", str(grandchild)], capture_output=True)
+        raise AssertionError(
+            "the analyzer subprocess %d survived the timeout — the kill reached "
+            "the adapter but not its process group" % grandchild
+        )
 
 
 def test_output_is_capped(monkeypatch):

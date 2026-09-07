@@ -64,6 +64,7 @@ plugin README.
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import unicodedata
 import sys
@@ -72,6 +73,12 @@ from typing import List, Optional
 
 #: The vendored copy of the shared adapter, alongside this file.
 _ADAPTER_PATH = Path(__file__).resolve().parent / "audit_report.py"
+
+#: Whether to put the adapter in its own process group. POSIX only — `setsid`
+#: has no Windows equivalent, and there `Popen.kill` reaches the adapter but not
+#: the `rule-audit` analyzer beneath it. Stated rather than silently
+#: platform-dependent.
+_NEW_SESSION = os.name == "posix"
 
 #: Wall-clock ceiling for the whole audit. `audit_report.py` allows its own
 #: `rule-audit` call 120s, but a Hermes slash command is dispatched
@@ -218,8 +225,56 @@ def _status_line(status: int) -> str:
     return "[rule-audit status %d] %s" % (status, note)
 
 
+def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
+    """Kill the adapter *and* the analyzer it started. True if the tree was reached.
+
+    There are two processes below this one — this module starts
+    `audit_report.py`, which starts `rule-audit` — and the O(n^2), CPU-bound
+    work that makes a timeout necessary at all is in that grandchild. Killing
+    the adapter alone leaves it orphaned and still running, while the caller
+    reports that the audit "was stopped": a false statement and a runaway
+    process on the user's machine at once. (Found by the Codex lane's review
+    of the identical shape in that plugin's wrapper, then confirmed here.)
+
+    Two mechanisms, because there is no portable one. On POSIX,
+    `start_new_session` puts the adapter in its own process group and one
+    `killpg` reaches every descendant. On Windows there is no `setsid`, so this
+    shells out to `taskkill /T`, which walks the child tree by PID.
+
+    The return value is not decoration. Both mechanisms can fail — a race
+    against a process that has already exited, a permissions refusal, a
+    `taskkill` that is not on `PATH` — and the caller words its message
+    differently when the analyzer may still be alive. Claiming "stopped" for
+    something that was not stopped is the defect this function exists to
+    prevent; doing that in the failure branch would be the same defect in a
+    smaller place.
+    """
+    if _NEW_SESSION and hasattr(os, "killpg"):
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            return True
+        except (OSError, ProcessLookupError):
+            # Already gone, or no permission — fall through to the direct kill,
+            # which is still better than leaving the adapter alive.
+            pass
+    elif os.name == "nt":
+        try:
+            completed = subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+            )
+            if completed.returncode == 0:
+                return True
+        except (OSError, subprocess.SubprocessError):
+            pass
+    process.kill()
+    return False
+
+
 def _run_adapter(target: Path) -> "subprocess.CompletedProcess[str]":
-    """Run the vendored adapter in its own process.
+    """Run the vendored adapter in its own process group.
 
     A subprocess rather than an in-process import, for two reasons that both
     come from this host being a long-lived process the user is sitting in:
@@ -231,16 +286,37 @@ def _run_adapter(target: Path) -> "subprocess.CompletedProcess[str]":
     `--` keeps argparse from reading a path that begins with a dash as an
     option, so `/rule-audit --help` reports that no such file exists rather than
     printing argparse's help.
+
+    `Popen` rather than `subprocess.run(timeout=...)`: `run` kills only the
+    process it started, and the slow half — `rule-audit` — is a grandchild.
+    See `_kill_process_tree`.
     """
-    return subprocess.run(
+    process = subprocess.Popen(
         [sys.executable, str(_ADAPTER_PATH), "--", str(target)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        timeout=TIMEOUT_SECONDS,
         # The adapter is pure stdlib and resolves its own rule-audit runtime;
         # inheriting cwd is deliberate so a relative path means what the user
         # typed it to mean.
+        start_new_session=_NEW_SESSION,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as expired:
+        reached_whole_tree = _kill_process_tree(process)
+        # Drain after killing, or the pipes can keep this blocked on a child
+        # that is already dead but whose buffers were never read.
+        try:
+            process.communicate(timeout=10)
+        except (subprocess.TimeoutExpired, OSError, ValueError):  # pragma: no cover
+            pass
+        # Carried on the exception rather than returned, because the caller
+        # reaches this through `except` and needs it to word its message.
+        expired.rule_audit_tree_killed = reached_whole_tree  # type: ignore[attr-defined]
+        raise
+    return subprocess.CompletedProcess(
+        process.args, process.returncode, stdout=stdout, stderr=stderr
     )
 
 
@@ -306,11 +382,21 @@ def audit(raw_args: str) -> str:
 
     try:
         completed = _run_adapter(target)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as expired:
+        # Say "was stopped" only when it was. See `_kill_process_tree`: both of
+        # its mechanisms can fail, and claiming a kill that did not happen is
+        # the same defect the process-tree kill exists to prevent.
+        if getattr(expired, "rule_audit_tree_killed", True):
+            outcome = "and was stopped, so your session stays responsive."
+        else:
+            outcome = (
+                "and was killed, but the analyzer it had started could not be "
+                "stopped with it and may still be running — check your process list."
+            )
         return _finish(
-            "rule-audit: the audit of %s did not finish within %ds and was stopped, so "
-            "your session stays responsive. Run `rule-audit --file` against it directly "
-            "to audit it without a time limit." % (target, TIMEOUT_SECONDS),
+            "rule-audit: the audit of %s did not finish within %ds %s Run "
+            "`rule-audit --file` against it directly to audit it without a time limit."
+            % (target, TIMEOUT_SECONDS, outcome),
             1,
         )
     except (OSError, ValueError, subprocess.SubprocessError) as error:
