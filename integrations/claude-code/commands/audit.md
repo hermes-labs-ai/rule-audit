@@ -19,11 +19,20 @@ Target: **$ARGUMENTS**
      one, audit it as asked but say plainly that the result is unreliable for
      that kind of document — see "Scope" below.
 
-2. Run exactly this, once, with the resolved path:
+2. Run exactly this, once, with the resolved path substituted for `<path>`
+   inside the single quotes:
 
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/audit_report.py" <path>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/audit_report.py" -- '<path>'
    ```
+
+   The path is user input and goes through a shell. Keep it as one
+   single-quoted argument: spaces, `$`, backticks, `;` and `*` inside single
+   quotes are passed to the script, not interpreted. If the path itself
+   contains a single quote, write each one as `'\''` (close, escaped quote,
+   reopen). Keep the `--`: it makes a path that starts with `-` a filename
+   rather than an option. Do not use double quotes, do not leave the path
+   bare, and do not add or reorder arguments.
 
 3. Read the exit code before reading the output:
    - **0** — risk LOW or MEDIUM.

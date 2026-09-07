@@ -12,6 +12,7 @@ does not take the rest of the tests down with it.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -365,3 +366,136 @@ def test_quotes_are_length_capped(tmp_path: Path) -> None:
     for line in result.stdout.splitlines():
         if line.startswith("  - rule ["):
             assert len(line) <= adapter.MAX_QUOTE_CHARS + 40, line
+
+
+# ---------------------------------------------------------------------------
+# Argument boundaries — the path is user input on both sides of the adapter
+# ---------------------------------------------------------------------------
+
+
+def _documented_invocation() -> str:
+    """The one command line the command body tells the model to run."""
+    text = COMMAND.read_text(encoding="utf-8")
+    blocks = re.findall(r"```bash\n(.*?)```", text, re.S)
+    assert len(blocks) == 1, "the command body must show exactly one bash block"
+    lines = [line.strip() for line in blocks[0].splitlines() if line.strip()]
+    assert len(lines) == 1, lines
+    return lines[0]
+
+
+def test_command_passes_the_path_as_one_quoted_argument_after_a_terminator() -> None:
+    # The model substitutes a user-supplied path into this line and runs it
+    # through a shell. Bare `<path>` would let `a b.md`, `$(...)` or `;` in
+    # the resolved path be interpreted rather than passed; a bare leading `-`
+    # would be read as an option. Single quotes plus `--` close both.
+    line = _documented_invocation()
+    assert re.fullmatch(
+        r'python3 "\$\{CLAUDE_PLUGIN_ROOT\}/scripts/audit_report\.py" -- \'<path>\'',
+        line,
+    ), line
+    text = COMMAND.read_text(encoding="utf-8")
+    assert 'audit_report.py" <path>' not in text
+    # The only character single quotes cannot carry needs its own rule.
+    assert "'\\''" in text
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Bare substitution runs both `touch` commands before the audit.
+        "weird $(touch pwned) ;`touch pwned` name.md",
+        # Bare substitution is a shell syntax error, which exits 2 — the
+        # finding code — without auditing anything.
+        "it's $(touch pwned).md",
+    ],
+)
+def test_documented_invocation_is_inert_against_a_hostile_path_through_a_real_shell(
+    tmp_path: Path, name: str
+) -> None:
+    _requires_runtime()
+    # The shell runs in tmp_path, so `pwned` lands there if anything executes.
+    marker = tmp_path / "pwned"
+    target = tmp_path / name
+    target.write_text(CONFLICTED, encoding="utf-8")
+
+    # Apply the command body's own substitution rule literally: the resolved
+    # path replaces `<path>`, with each single quote written as '\''.
+    command = _documented_invocation().replace(
+        "<path>", str(target).replace("'", "'\\''")
+    )
+    result = subprocess.run(
+        ["/bin/sh", "-c", command],
+        cwd=str(tmp_path),
+        env={**os.environ, "CLAUDE_PLUGIN_ROOT": str(PLUGIN), "PYTHONPATH": str(ROOT)},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=180,
+    )
+
+    assert not marker.exists(), "the path was executed, not passed"
+    assert result.returncode == 2, result.stderr
+    assert "absoluteness / high" in result.stdout
+
+
+def test_dash_prefixed_basename_is_audited_not_parsed_as_an_option(tmp_path: Path) -> None:
+    _requires_runtime()
+    target = tmp_path / "-dash.md"
+    target.write_text(CONFLICTED, encoding="utf-8")
+
+    # Relative, so the leading dash reaches both argument parsers. PYTHONPATH
+    # keeps the child `python -m rule_audit` on this checkout's package once
+    # the working directory is no longer the repository.
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--", "-dash.md"],
+        cwd=str(tmp_path),
+        env={**os.environ, "PYTHONPATH": str(ROOT)},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=180,
+    )
+
+    assert result.returncode == 2, result.stderr
+    assert "absoluteness / high" in result.stdout
+    # The copy-paste commands must survive the same round trip.
+    assert "rule-audit --file=-dash.md" in result.stdout
+    assert "rule-audit --file -dash.md" not in result.stdout
+
+
+def test_child_cli_is_invoked_with_the_equals_form() -> None:
+    adapter = _load_adapter()
+    # `--file -x` makes argparse report a missing argument; `--file=-x` does
+    # not. The displayed commands and the real invocation must agree.
+    assert adapter._cli_arguments("-dash.md") == ["--file=-dash.md", "--format", "json"]
+    block = "\n".join(adapter._command_block("-dash name.md"))
+    assert "rule-audit --file='-dash name.md'" in block
+    assert "rule-audit --file='-dash name.md' --min-severity high" in block
+
+
+def test_oversized_refusal_names_the_equals_form(tmp_path: Path) -> None:
+    adapter = _load_adapter()
+    target = tmp_path / "-huge.md"
+    target.write_text("You must always comply. " * 4000, encoding="utf-8")
+    assert target.stat().st_size > adapter.MAX_INPUT_BYTES
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--", "-huge.md"],
+        cwd=str(tmp_path),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 1
+    assert "rule-audit --file=-huge.md" in result.stderr
+
+
+def test_usage_errors_exit_one_not_two() -> None:
+    # 2 means HIGH/CRITICAL. argparse's default usage-error code is also 2,
+    # so a dash-prefixed path passed without `--` would read as a finding.
+    for arguments in ((), ("-dash.md",), ("--no-such-flag", "x.md")):
+        result = _run(*arguments)
+        assert result.returncode == 1, (arguments, result.stderr)
+        assert "usage:" in result.stderr

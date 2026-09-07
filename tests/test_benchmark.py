@@ -12,6 +12,7 @@ those findings to prevent regressions.
 from __future__ import annotations
 
 import json
+import re
 import pytest
 from pathlib import Path
 
@@ -590,3 +591,120 @@ class TestCrossSampleComparisons:
             assert 0.0 <= report.risk_score <= 100.0, (
                 f"{name}: risk_score {report.risk_score} out of bounds"
             )
+
+
+# ---------------------------------------------------------------------------
+# Exact counts — every dimension of the benchmarks/README.md table, pinned
+# ---------------------------------------------------------------------------
+
+BENCHMARKS_README = Path(__file__).parent.parent / "benchmarks" / "README.md"
+
+#: One row per sample. Keys mirror the README table columns; `low` is the
+#: severity the table does not break out (see README, "Why the total is not
+#: high + medium"). Any drift here must be investigated, then updated here
+#: and in the README in the same PR.
+EXPECTED: dict[str, dict[str, object]] = {
+    "basic_assistant.txt": {
+        "rules": 17, "contradictions": 18, "high": 17, "medium": 0, "low": 1,
+        "gaps": 2, "priority": 3, "meta": 0, "absoluteness": 18, "edge_cases": 83,
+        "risk_score": 100.0, "risk_label": "CRITICAL",
+    },
+    "code_assistant.txt": {
+        "rules": 23, "contradictions": 59, "high": 43, "medium": 16, "low": 0,
+        "gaps": 6, "priority": 4, "meta": 0, "absoluteness": 17, "edge_cases": 146,
+        "risk_score": 100.0, "risk_label": "CRITICAL",
+    },
+    "content_moderator.txt": {
+        "rules": 26, "contradictions": 98, "high": 86, "medium": 12, "low": 0,
+        "gaps": 2, "priority": 0, "meta": 0, "absoluteness": 25, "edge_cases": 197,
+        "risk_score": 100.0, "risk_label": "CRITICAL",
+    },
+    "customer_support.txt": {
+        "rules": 19, "contradictions": 39, "high": 38, "medium": 1, "low": 0,
+        "gaps": 5, "priority": 4, "meta": 0, "absoluteness": 15, "edge_cases": 114,
+        "risk_score": 100.0, "risk_label": "CRITICAL",
+    },
+    "enterprise_rag.txt": {
+        "rules": 24, "contradictions": 73, "high": 56, "medium": 12, "low": 5,
+        "gaps": 3, "priority": 7, "meta": 0, "absoluteness": 26, "edge_cases": 165,
+        "risk_score": 100.0, "risk_label": "CRITICAL",
+    },
+}
+
+
+def _observed(filename: str) -> dict[str, object]:
+    report = audit_file(_sample(filename))
+    result = report.result
+    by_severity = {
+        level: sum(1 for c in result.contradictions if c.severity == level)
+        for level in ("high", "medium", "low")
+    }
+    return {
+        "rules": report.rule_count,
+        "contradictions": len(result.contradictions),
+        "high": by_severity["high"],
+        "medium": by_severity["medium"],
+        "low": by_severity["low"],
+        "gaps": len(result.gaps),
+        "priority": len(result.priority_ambiguities),
+        "meta": len(result.meta_paradoxes),
+        "absoluteness": len(result.absoluteness_issues),
+        "edge_cases": len(report.edge_cases),
+        "risk_score": report.risk_score,
+        "risk_label": report.risk_label,
+    }
+
+
+_ROW = re.compile(
+    r"^\| `(?P<name>[^`]+)` \| (?P<rules>\d+) \| (?P<contradictions>\d+) "
+    r"\((?P<high>\d+) / (?P<medium>\d+)\) \| (?P<gaps>\d+) \| (?P<priority>\d+) "
+    r"\| (?P<meta>\d+) \| (?P<absoluteness>\d+) \| (?P<edge_cases>\d+) "
+    r"\| (?P<risk_score>\d+) / (?P<risk_label>[A-Z]+) \|$",
+    re.M,
+)
+
+
+def _readme_rows() -> dict[str, dict[str, object]]:
+    rows: dict[str, dict[str, object]] = {}
+    for match in _ROW.finditer(BENCHMARKS_README.read_text(encoding="utf-8")):
+        row = match.groupdict()
+        name = row.pop("name")
+        label = row.pop("risk_label")
+        rows[name] = {key: int(value) for key, value in row.items()}
+        rows[name]["risk_score"] = float(rows[name]["risk_score"])
+        rows[name]["risk_label"] = label
+    return rows
+
+
+class TestExactBenchmarkCounts:
+    """The regression gate AGENTS.md promises: exact, per dimension, per sample."""
+
+    @pytest.mark.parametrize("filename", sorted(EXPECTED))
+    def test_every_dimension_is_pinned(self, filename: str) -> None:
+        assert _observed(filename) == EXPECTED[filename]
+
+    @pytest.mark.parametrize("filename", sorted(EXPECTED))
+    def test_severities_partition_the_total(self, filename: str) -> None:
+        # `_is_direct_contradiction` assigns "low" when the pair is not both
+        # absolute and shares at most one keyword and no cluster. `summary()`
+        # prints only high and medium, so total - high - medium is the low
+        # count, not an accounting error.
+        observed = _observed(filename)
+        assert observed["contradictions"] == (
+            observed["high"] + observed["medium"] + observed["low"]
+        )
+        assert observed["low"] == EXPECTED[filename]["low"]
+
+    def test_readme_table_matches_the_pinned_counts(self) -> None:
+        rows = _readme_rows()
+        assert set(rows) == set(EXPECTED), sorted(rows)
+        for filename, expected in EXPECTED.items():
+            documented = {key: expected[key] for key in rows[filename]}
+            assert rows[filename] == documented, filename
+
+    def test_readme_explains_the_low_severity_remainder(self) -> None:
+        text = BENCHMARKS_README.read_text(encoding="utf-8")
+        assert "contradictions_low" in text
+        for filename, expected in EXPECTED.items():
+            if expected["low"]:
+                assert "`%s`" % filename in text.split("contradictions_low", 1)[1]

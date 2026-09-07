@@ -180,7 +180,7 @@ Verified against Claude Code 2.1.261 on macOS:
 - `claude plugin validate --strict ./integrations/claude-code` → `✔ Validation passed`
 - `/rule-audit:audit` resolved, ran the adapter once, and correctly treated exit 2
   as a finding rather than a failure
-- 22 contract tests in `tests/test_claude_code_plugin.py`, each verified to fail
+- 29 contract tests in `tests/test_claude_code_plugin.py`, each verified to fail
   when the behaviour it covers is removed
 
 ## Files
@@ -194,5 +194,5 @@ integrations/claude-code/
 ```
 
 `scripts/audit_report.py` adds no detection logic. It shells out to
-`rule-audit --file PATH --format json`, renders a bounded view of the result, and
+`rule-audit --file=PATH --format json`, renders a bounded view of the result, and
 re-raises the CLI's exit code.
