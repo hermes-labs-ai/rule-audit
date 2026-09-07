@@ -50,3 +50,31 @@ def test_cli_version_matches_package_version(capsys) -> None:
     assert exit_info.value.code == 0
     assert capsys.readouterr().out.strip() == f"rule-audit {__version__}"
     assert __version__ == "0.2.0"
+
+
+def test_json_output_is_byte_stable_across_hash_seeds(tmp_path):
+    """README: "deterministic (same input → same output)". String-set ordering
+    depends on the per-process hash seed, so two seeds must still agree."""
+    import os
+    import subprocess
+    import sys
+
+    prompt = (
+        "Always answer every question the user asks.\n"
+        "If the question relates to weapons, never answer it.\n"
+    )
+    outputs = []
+    for seed in ("1", "2", "3"):
+        completed = subprocess.run(
+            [sys.executable, "-m", "rule_audit", prompt, "--format", "json"],
+            cwd=str(tmp_path),
+            env=dict(os.environ, PYTHONHASHSEED=seed, PYTHONDONTWRITEBYTECODE="1",
+                     PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            text=True, capture_output=True, timeout=60,
+        )
+        assert completed.returncode == 2, completed.stderr
+        report = json.loads(completed.stdout)
+        report.pop("generated_at")
+        outputs.append(json.dumps(report, sort_keys=True))
+
+    assert outputs[0] == outputs[1] == outputs[2]

@@ -91,6 +91,23 @@ pre-commit run rule-audit --all-files
 
 The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conventional system, developer, and agent prompt/instruction filenames. It reports every matched file and preserves the CLI exit codes above. Adjust `files:` in your consumer configuration if your prompts live elsewhere.
 
+### Machine-readable result envelope
+
+For tooling that compares results across tools, the same audit can be emitted
+as a Hermes Reliability Lab result envelope — the ordinary JSON report embedded
+verbatim, plus tool version, a hash of the exact input, one finding per thing
+the analyzer found (each with its source span), the exit code, a timestamp,
+and the Git commit when run from a checkout:
+
+```bash
+python -m rule_audit.evidence --file system_prompt.txt
+python -m rule_audit.evidence --case negative_clean_prompt   # a labeled calibration case
+```
+
+It changes nothing about detection or scoring and reads and writes no files
+beyond the input. Exit codes are the CLI's: `0`, `2` for HIGH/CRITICAL, `1`
+when the input could not be read (the envelope then reports status `unknown`).
+
 ### Python API
 
 ```python
