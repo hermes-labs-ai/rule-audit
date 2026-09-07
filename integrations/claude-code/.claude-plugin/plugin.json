@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "rule-audit",
+  "displayName": "rule-audit",
+  "description": "On-demand static analysis of AI system prompts: run rule-audit on a prompt file from inside Claude Code and get a bounded report of contradictions, coverage gaps, priority ambiguities and meta-paradoxes.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Rolando Bosch",
+    "email": "roli@hermes-labs.ai",
+    "url": "https://github.com/hermes-labs-ai"
+  },
+  "homepage": "https://github.com/hermes-labs-ai/rule-audit",
+  "repository": "https://github.com/hermes-labs-ai/rule-audit",
+  "license": "MIT",
+  "keywords": ["prompt-engineering", "ai-safety", "static-analysis", "system-prompt", "audit", "developer-tools"]
+}
