@@ -214,6 +214,20 @@ def test_manifest_requests_no_privileged_capability_and_adds_no_ambient_surface(
     assert "provides_hooks" not in data
 
 
+def test_manifest_declares_no_version_the_installer_would_reject():
+    """`hermes plugins install` caps `manifest_version` lower than the loader does.
+
+    On Hermes Agent 0.21.0 the loader accepts 2
+    (`plugins_manifest.SUPPORTED_MANIFEST_VERSION`) but the installer accepts 1
+    (`plugins_cmd._SUPPORTED_MANIFEST_VERSION`), so a manifest declaring 2 loads
+    fine from a hand-copied directory and fails the documented install with
+    "requires manifest_version 2, but this installer only supports up to 1".
+    Absent means v1, which is supported forever, and nothing here needs v2.
+    """
+    data = _manifest()
+    assert data.get("manifest_version", 1) == 1
+
+
 def test_manifest_matches_pyyaml_when_it_is_available():
     """Keep the hand parser above honest against the parser the host uses."""
     yaml = pytest.importorskip("yaml")

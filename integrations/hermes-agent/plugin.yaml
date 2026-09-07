@@ -19,7 +19,12 @@ description: Audit a system prompt for contradictions, priority conflicts and co
 author: Hermes Labs
 license: MIT
 homepage: https://github.com/hermes-labs-ai/rule-audit
-manifest_version: 2
+# No `manifest_version`: absent means v1, which is supported forever.
+# Declaring 2 makes this plugin uninstallable on Hermes 0.21.0 — its loader
+# accepts v2 (`plugins_manifest.SUPPORTED_MANIFEST_VERSION = 2`) but its
+# installer rejects it (`plugins_cmd._SUPPORTED_MANIFEST_VERSION = 1`), so
+# `hermes plugins install` fails with "requires manifest_version 2, but this
+# installer only supports up to 1". None of the fields below need v2.
 tags:
   - prompt-engineering
   - static-analysis
