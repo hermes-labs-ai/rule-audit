@@ -2,16 +2,16 @@
 
 A Codex plugin that contributes one skill, `$rule-audit:audit`, for auditing a
 named AI system-prompt file with the [`rule-audit`](https://github.com/hermes-labs-ai/rule-audit)
-static analyzer — locally, offline, deterministically, and only when you ask.
+static analyzer — locally, offline, deterministically, and only inside a turn
+you send.
 
 ```
 > Audit prompts/support_agent.md with $rule-audit:audit
 ```
 
-Codex runs the bundled adapter in the normal read-only sandbox, shows you the
-command and its output in the transcript, and summarises the findings:
-contradictions, priority ambiguities, meta-paradoxes, absoluteness issues and
-coverage gaps.
+Codex runs the bundled adapter locally, shows you the command and its output in
+the transcript, and summarises the findings: contradictions, priority
+ambiguities, meta-paradoxes, absoluteness issues and coverage gaps.
 
 Validated against Codex CLI **0.145.0**.
 
@@ -36,9 +36,16 @@ The repository is itself a Codex plugin marketplace, so installing is two
 commands:
 
 ```bash
-codex plugin marketplace add hermes-labs-ai/rule-audit
+codex plugin marketplace add hermes-labs-ai/rule-audit --ref main
 codex plugin add rule-audit@rule-audit
 ```
+
+**`--ref` is required until this lands on the default branch.** Measured, not
+inferred: `codex plugin marketplace add` runs a plain `git clone` with no
+`--branch`, so it gets the remote's default branch and then looks for
+`.agents/plugins/marketplace.json` at the clone root. That file does not exist
+on `main` yet, so without `--ref <this-branch>` the command fails with the
+manifest not found. Once merged, the bare form works.
 
 To install from a local clone instead — which is also how you test a change:
 
@@ -47,7 +54,6 @@ codex plugin marketplace add /path/to/rule-audit
 codex plugin add rule-audit@rule-audit
 ```
 
-`codex plugin marketplace add` accepts `--ref <branch-or-tag>` to pin, and
 `codex plugin list` shows what a marketplace offers before you install anything.
 
 Installing copies `integrations/codex/` to
@@ -72,10 +78,18 @@ mention into the composer — you still press Enter, so nothing runs until you
 send it.
 
 You can also just describe the task (“check my system prompt for contradictions,
-it’s in prompts/support.md”) and Codex may reach for the skill on its own. The
-description is written to make that fire on prompt-audit requests and not on
-general code review, but explicit is explicit: the `$` mention is the one that
-always works.
+it’s in prompts/support.md”) and Codex may reach for the skill on its own —
+**skills are implicitly invocable by default**, and the instructions Codex
+injects tell the model to use a skill when "the task clearly matches a skill's
+description". That is the mechanism, not something this plugin opts into; the
+description is written to make it fire on prompt-audit requests and not on
+general code review. Nothing runs in the background and nothing runs until you
+send a turn, but "the model never picks this up unless you name it" would be
+false, so: it can, and it is meant to.
+
+To make the skill explicit-only, add `policy: {allow_implicit_invocation: false}`
+to the front matter of the installed `SKILL.md` — or just disable it and use it
+by mention. The `$` mention is the invocation that always works.
 
 ## What you get
 
@@ -162,8 +176,15 @@ else is. Neither command touches `rule-audit` itself — remove that with
 `pipx uninstall rule-audit`.
 
 The plugin writes no state of its own anywhere, and running it writes no
-`__pycache__` into its install directory (the adapter is executed as a script,
-not imported).
+`__pycache__` into its install directory — the adapter is executed as a
+subprocess script rather than imported, so Python caches nothing.
+
+One caveat for the local-clone install path: `codex plugin add` copies the
+source directory *verbatim*, so if your clone already contains a `__pycache__/`
+under `skills/audit/scripts/` — which running this repository's test suite
+creates — that directory is copied in too. It is inert, and `codex plugin
+remove` deletes it with everything else. A Git-sourced install never has one,
+because `__pycache__` is gitignored.
 
 ## How it is put together
 

@@ -195,7 +195,7 @@ def _emit(body: str, status: int) -> int:
     exactly the ambiguity the line exists to remove, and a verdict inside the
     fence would be a claim the reader has just been told to treat as data.
     """
-    body = body.rstrip()
+    body = _sanitize(body.rstrip())
     # A fence only contains what cannot restate its own closing marker. Rule
     # text is quoted out of the audited file, and `audit_report.py` collapses
     # newlines inside a quoted span but does not know this marker exists — so a
@@ -203,16 +203,25 @@ def _emit(body: str, status: int) -> int:
     # early and have the text after it read as ordinary output. Defanging the
     # marker rather than dropping the text keeps the report honest about what
     # the file actually says.
+    #
+    # ORDER IS LOAD-BEARING: sanitize first, then defang. `_sanitize` replaces
+    # each format character with a space, so `---<U+200B>END RULE-AUDIT
+    # OUTPUT<U+200B>---` does not match this marker before sanitizing and *is*
+    # the marker after it. Defanging first therefore defangs nothing and hands
+    # the attacker a forged terminator. U+200B is not `str.isspace()`, so
+    # `audit_report.py`'s whitespace collapsing does not remove it either, and
+    # it survives the Markdown escaping untouched. Do not reorder these.
     body = body.replace(_FENCE_CLOSE, _FENCE_CLOSE.replace("---", "- - -"))
     if len(body) > MAX_OUTPUT_CHARS:
         body = body[:MAX_OUTPUT_CHARS] + (
-            "\n\n[truncated at %d characters. Run `rule-audit --file` against the file "
-            "for the full report.]" % MAX_OUTPUT_CHARS
+            "\n\n[truncated at %d characters. The report's own \"Full report\" section "
+            "above names the command that prints all of it.]" % MAX_OUTPUT_CHARS
         )
+    # The fence markers and the status line are this module's own literals, so
+    # they are assembled after sanitizing rather than through it — sanitizing
+    # them would be sanitizing text no attacker can reach.
     sys.stdout.write(
-        _sanitize("%s\n%s\n%s\n" % (_FENCE_OPEN, body, _FENCE_CLOSE))
-        + _status_line(status)
-        + "\n"
+        "%s\n%s\n%s\n%s\n" % (_FENCE_OPEN, body, _FENCE_CLOSE, _status_line(status))
     )
     sys.stdout.flush()
     return status
@@ -281,7 +290,25 @@ def run(argv: Optional[List[str]] = None) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    run(argv)
+    try:
+        run(argv)
+    except BrokenPipeError:
+        # Reachable, and reachable *here* in a way it is not in the other three
+        # hosts: the model composes the shell call itself, so it can pipe this
+        # into `head` or `grep -m1`. When the reader closes early the write or
+        # the flush in `_emit` raises; left uncaught, Python then also reports
+        # "Exception ignored while flushing sys.stdout" at shutdown and the
+        # process exits 120. That is a non-zero exit with no status line, which
+        # is precisely the "the adapter never ran" signal SKILL.md defines —
+        # for a run that did.
+        #
+        # Pointing the fd at /dev/null is the documented way to keep the
+        # shutdown flush from raising again on a pipe that is already gone.
+        try:
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stdout.fileno())
+        except OSError:  # pragma: no cover - defensive
+            pass
     # Always 0. See the module docstring: exit 2 is the common case for a
     # working audit, and a non-zero exit is rendered as a failed command to both
     # the user and the model. The status is carried by the final printed line.

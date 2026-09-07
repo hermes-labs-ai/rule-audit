@@ -161,7 +161,7 @@ A plugin adds the skill to [Codex](https://github.com/openai/codex). The
 repository is itself a Codex plugin marketplace:
 
 ```bash
-codex plugin marketplace add hermes-labs-ai/rule-audit
+codex plugin marketplace add hermes-labs-ai/rule-audit --ref main
 codex plugin add rule-audit@rule-audit
 ```
 
@@ -171,8 +171,10 @@ codex plugin add rule-audit@rule-audit
 
 Type `$` or `/skills` to pick the skill — either way it is inserted into the
 composer and nothing runs until you send it. Codex then runs the bundled adapter
-in the normal read-only sandbox and summarises the findings. Nothing runs unless
-you ask for it, and there is no hook.
+locally and summarises the findings. Codex may also reach for the skill on its
+own when you ask for a prompt audit without naming it, which is how skills work
+and which the plugin README explains. There is no hook, nothing runs in the
+background, and nothing runs at all until you send a turn.
 
 See [`integrations/codex/README.md`](integrations/codex/README.md) for install,
 disable and uninstall, for what an installed skill costs on every turn, and for
