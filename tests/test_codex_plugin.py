@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import sys
 import unicodedata
@@ -459,19 +460,68 @@ def test_the_audit_is_time_bounded(capsys, tmp_path, monkeypatch):
     assert isinstance(wrapper.TIMEOUT_SECONDS, int)
     assert 0 < wrapper.TIMEOUT_SECONDS <= 120
 
-    seen = {}
+    def _fake_popen(argv, **kwargs):
+        raise wrapper.subprocess.TimeoutExpired(argv, wrapper.TIMEOUT_SECONDS)
 
-    def _fake_run(argv, **kwargs):
-        seen.update(kwargs)
-        raise __import__("subprocess").TimeoutExpired(argv, kwargs.get("timeout"))
-
-    monkeypatch.setattr(wrapper.subprocess, "run", _fake_run)
+    monkeypatch.setattr(wrapper.subprocess, "Popen", _fake_popen)
     target = tmp_path / "prompt.md"
     target.write_text(CONFLICTED, encoding="utf-8")
     status, out = _run_with(wrapper, capsys, [str(target)])
-    assert seen.get("timeout") == wrapper.TIMEOUT_SECONDS
     assert status == 1
     assert "did not finish within %ds" % wrapper.TIMEOUT_SECONDS in out
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
+def test_the_timeout_kills_the_analyzer_and_not_just_the_adapter(
+    capsys, tmp_path, monkeypatch
+):
+    """The slow half is the grandchild, so killing the child proves nothing.
+
+    This module starts `audit_report.py`, which starts `rule-audit`. The
+    O(n^2), CPU-bound work is in the grandchild. `subprocess.run(timeout=...)`
+    kills only its direct child, so the analyzer would keep running — while
+    this reported that the audit "was stopped". That is a false statement and a
+    runaway process at once.
+
+    The fake adapter below stands in for the real one: it spawns a long-lived
+    grandchild that writes its pid where the test can see it, then hangs. If the
+    kill does not reach the whole process group, that pid is still alive
+    afterwards.
+    """
+    import subprocess as _subprocess
+    import time
+
+    wrapper = _load_wrapper()
+    pidfile = tmp_path / "grandchild.pid"
+    fake_adapter = tmp_path / "fake_adapter.py"
+    fake_adapter.write_text(
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(600)'])\n"
+        "open(%r, 'w').write(str(child.pid))\n"
+        "time.sleep(600)\n" % str(pidfile),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(wrapper, "_ADAPTER_PATH", str(fake_adapter))
+    monkeypatch.setattr(wrapper, "TIMEOUT_SECONDS", 3)
+
+    status, out = _run_with(wrapper, capsys, [str(tmp_path / "irrelevant.md")])
+    assert status == 1
+    assert "did not finish within 3s" in out
+
+    assert pidfile.is_file(), "the fake adapter never started its grandchild"
+    grandchild = int(pidfile.read_text())
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        # `kill -0` probes for existence without signalling.
+        if _subprocess.run(["kill", "-0", str(grandchild)], capture_output=True).returncode != 0:
+            break
+        time.sleep(0.2)
+    else:
+        _subprocess.run(["kill", "-9", str(grandchild)], capture_output=True)
+        raise AssertionError(
+            "the analyzer subprocess %d survived the timeout — the kill reached "
+            "the adapter but not its process group" % grandchild
+        )
 
 
 def test_the_cap_applies_at_its_real_value(capsys):
@@ -598,10 +648,10 @@ def test_undisplayable_characters_never_reach_a_wrapper_rendered_message(
         pytest.skip("an embedded NUL never reaches the timeout path; covered below")
     wrapper = _load_wrapper()
 
-    def _fake_run(argv, **kwargs):
-        raise wrapper.subprocess.TimeoutExpired(argv, kwargs.get("timeout"))
+    def _fake_popen(argv, **kwargs):
+        raise wrapper.subprocess.TimeoutExpired(argv, wrapper.TIMEOUT_SECONDS)
 
-    monkeypatch.setattr(wrapper.subprocess, "run", _fake_run)
+    monkeypatch.setattr(wrapper.subprocess, "Popen", _fake_popen)
     status, out = _run_with(wrapper, capsys, ["hostile%sname.md" % payload])
     assert status == 1
     assert payload not in out

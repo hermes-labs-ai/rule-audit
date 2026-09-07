@@ -227,6 +227,10 @@ there is no phrasing the model could choose that removes them:
   found.
 - **It checks the argument count** rather than joining words, so an unquoted path
   with a space is reported back instead of silently auditing a different file.
+- **It bounds the audit at 60 seconds and kills the whole process group**, not
+  just the adapter. The analyzer is a grandchild, and it is the O(n²) half —
+  killing the direct child would leave the expensive work running while claiming
+  it had been stopped.
 
 ### No hook
 

@@ -75,6 +75,7 @@ every edit unbidden. The measurements are in the plugin README.
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
 import unicodedata
@@ -82,6 +83,11 @@ from typing import List, Optional
 
 #: The vendored copy of the shared adapter, alongside this file.
 _ADAPTER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audit_report.py")
+
+#: Whether to put the adapter in its own process group. POSIX only — `setsid`
+#: has no Windows equivalent, and there `Popen.kill` reaches the adapter but not
+#: the analyzer beneath it. Stated rather than silently platform-dependent.
+_NEW_SESSION = os.name == "posix"
 
 #: Wall-clock ceiling for the whole audit. `audit_report.py` allows its own
 #: `rule-audit` call 120s; this is deliberately shorter. Codex runs the command
@@ -157,8 +163,33 @@ def _status_line(status: int) -> str:
     return "[rule-audit status %d] %s" % (status, note)
 
 
+def _kill_process_tree(process: "subprocess.Popen[str]") -> None:
+    """Kill the adapter *and* the analyzer it started.
+
+    This is the whole reason `_run_adapter` uses `Popen` rather than
+    `subprocess.run(timeout=...)`. `run` kills only the process it started, and
+    there are two processes here: this module starts `audit_report.py`, which
+    starts `rule-audit`. Killing the adapter alone leaves the analyzer — the
+    O(n^2), CPU-bound half, and the only part that is ever slow — orphaned and
+    still running, while this reports that the audit "was stopped". That is a
+    false statement and a runaway process on the user's machine at once.
+
+    `start_new_session` puts the adapter in its own process group, so one
+    `killpg` reaches every descendant.
+    """
+    if _NEW_SESSION and hasattr(os, "killpg"):
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            return
+        except (OSError, ProcessLookupError):
+            # Already gone, or no permission — fall through to the direct kill,
+            # which is still better than leaving the adapter alive.
+            pass
+    process.kill()
+
+
 def _run_adapter(path: str) -> "subprocess.CompletedProcess[str]":
-    """Run the vendored adapter in its own process.
+    """Run the vendored adapter in its own process group.
 
     A subprocess rather than an in-process import, for two reasons. The report
     has to be captured before it is printed — it is fenced, capped and
@@ -170,15 +201,29 @@ def _run_adapter(path: str) -> "subprocess.CompletedProcess[str]":
     option, so a file called `--help` reports that it does not exist rather than
     printing argparse's help into the model's context.
     """
-    return subprocess.run(
+    process = subprocess.Popen(
         [sys.executable, _ADAPTER_PATH, "--", path],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        timeout=TIMEOUT_SECONDS,
         # The adapter is pure stdlib and resolves its own rule-audit runtime;
         # inheriting cwd is deliberate so a relative path means what the model
         # was told it meant.
+        start_new_session=_NEW_SESSION,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(process)
+        # Drain after killing, or the pipes can keep this blocked on a child
+        # that is already dead but whose buffers were never read.
+        try:
+            process.communicate(timeout=10)
+        except (subprocess.TimeoutExpired, OSError, ValueError):  # pragma: no cover
+            pass
+        raise
+    return subprocess.CompletedProcess(
+        process.args, process.returncode, stdout=stdout, stderr=stderr
     )
 
 
