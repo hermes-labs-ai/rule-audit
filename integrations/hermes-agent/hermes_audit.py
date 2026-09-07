@@ -152,9 +152,19 @@ def hermes_home() -> Path:
             return Path(override)
         if sys.platform == "win32":
             local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
-            base = Path(local_appdata) if local_appdata else Path.home() / "AppData" / "Local"
-            return base / "hermes"
-        return Path.home() / ".hermes"
+            if local_appdata:
+                return Path(local_appdata) / "hermes"
+        try:
+            base = Path.home()
+        except (RuntimeError, OSError):
+            # `Path.home()` raises when no home directory can be determined.
+            # There is then no SOUL.md to default to, so return a path that
+            # simply will not exist: the caller reports "file not found" and
+            # the usage hint, which is true and useful, rather than crashing.
+            return Path(".hermes")
+        if sys.platform == "win32":
+            return base / "AppData" / "Local" / "hermes"
+        return base / ".hermes"
 
 
 def soul_path() -> Path:
@@ -265,8 +275,26 @@ def audit(raw_args: str) -> str:
     with no report, the TUI reports the command as unrecognised, and the gateway
     falls through and sends the user's message to the model as a chat turn.
     """
-    target = resolve_target(raw_args)
-    used_default = not _clean_arg(raw_args)
+    # Resolution runs before the subprocess call, so it needs its own guard or
+    # an exception here escapes the handler entirely. `Path.home()` and
+    # `expanduser()` both raise when no home directory can be determined, and
+    # `soul_path()` is reached by the bare form before anything else.
+    try:
+        target = resolve_target(raw_args)
+        used_default = not _clean_arg(raw_args)
+        # Resolved once, inside the guard, so the failure branch below never
+        # has to call `soul_path()` again outside it.
+        default_note = (
+            "\nNo path was given, so this looked for your SOUL.md at %s." % soul_path()
+            if used_default
+            else ""
+        )
+    except Exception as error:
+        return _finish(
+            "rule-audit: could not work out which file to audit (%s). "
+            "Name the file explicitly.\n%s" % (error, _USAGE),
+            1,
+        )
 
     if not _ADAPTER_PATH.exists():
         return _finish(
@@ -302,13 +330,10 @@ def audit(raw_args: str) -> str:
         detail = problem or "the audit produced no report."
         if detail.startswith(_ADAPTER_PREFIX):
             detail = detail[len(_ADAPTER_PREFIX):]
-        hint = "" if not used_default else (
-            "\nNo path was given, so this looked for your SOUL.md at %s." % soul_path()
-        )
-        return _finish("rule-audit: %s%s\n%s" % (detail, hint, _USAGE), 1)
+        return _finish("rule-audit: %s%s\n%s" % (detail, default_note, _USAGE), 1)
 
     if used_default:
-        body = "Auditing your SOUL.md (%s) — no path was given.\n\n%s" % (soul_path(), body)
+        body = "Auditing your SOUL.md (%s) — no path was given.\n\n%s" % (target, body)
 
     return _finish(body, status)
 

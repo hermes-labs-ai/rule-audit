@@ -740,3 +740,40 @@ def test_a_broken_host_accessor_falls_back_rather_than_raising(monkeypatch, tmp_
     monkeypatch.setitem(sys.modules, "hermes_constants", stub)
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     assert wrapper.hermes_home() == tmp_path
+
+
+def test_an_unavailable_home_directory_does_not_raise(monkeypatch):
+    """`Path.home()` raises when no home can be determined — same class as `expanduser()`.
+
+    The bare form reaches it through `soul_path()` *before* `audit()` enters the
+    subprocess try block, so it escaped the handler exactly as the tilde case
+    did. Fixing one call site and not its sibling would have left the
+    "never raises" guarantee false for the command's default invocation.
+    """
+    wrapper = _load_wrapper()
+    monkeypatch.delenv("HERMES_HOME", raising=False)
+    monkeypatch.setitem(sys.modules, "hermes_constants", None)
+
+    def _no_home():
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(_no_home))
+    # Neither the accessor nor the environment nor the platform default works.
+    assert wrapper.hermes_home() == Path(".hermes")
+    out = wrapper.audit("")
+    assert isinstance(out, str)
+    assert "[rule-audit status 1]" in out
+
+
+def test_the_handler_survives_any_resolution_failure(monkeypatch):
+    """The guard is on the resolution step, not on one known exception."""
+    wrapper = _load_wrapper()
+
+    def _boom(raw_args):
+        raise ValueError("resolution exploded")
+
+    monkeypatch.setattr(wrapper, "resolve_target", _boom)
+    out = wrapper.audit("")
+    assert "could not work out which file to audit" in out
+    assert "resolution exploded" in out
+    assert "[rule-audit status 1]" in out
