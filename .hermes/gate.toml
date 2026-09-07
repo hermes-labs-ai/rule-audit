@@ -13,7 +13,9 @@ argv = []
 minimum_version = ""
 
 [lintlang]
-enabled = true
+# CI runs the checked-in standalone runner, which does not orchestrate this
+# separate policy block. Keep the policy disabled instead of claiming coverage.
+enabled = false
 argv = ["lintlang", "scan", "--format", "json", "--fail-on", "review", "{files}"]
 trigger_globs = ["**/AGENTS.md", "**/CLAUDE.md", "**/prompts/**", "**/*.prompt", ".codex/**", ".claude/**"]
 timeout_seconds = 4.0
