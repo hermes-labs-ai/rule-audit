@@ -32,8 +32,10 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 #: Minimum rule-audit release this adapter is written against. 0.3.1 is the
@@ -366,6 +368,63 @@ def _fail(message: str) -> int:
     return 1
 
 
+def _snapshot_input(path: str) -> Tuple[Optional[str], Optional[str]]:
+    """Copy one bounded, regular-file snapshot and return its path or an error.
+
+    Opening the source once binds the size check and the audited bytes to the
+    same file even if the pathname is replaced concurrently. O_NONBLOCK keeps
+    a FIFO from hanging before fstat can reject it.
+    """
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NONBLOCK", 0)
+    source_fd = -1
+    try:
+        source_fd = os.open(path, flags)
+        metadata = os.fstat(source_fd)
+        if stat.S_ISDIR(metadata.st_mode):
+            return None, "%r is a directory; pass a single prompt file." % path
+        if not stat.S_ISREG(metadata.st_mode):
+            return None, "%r is not a regular file; pass a single prompt file." % path
+        with os.fdopen(source_fd, "rb") as source:
+            source_fd = -1
+            content = source.read(MAX_INPUT_BYTES + 1)
+    except FileNotFoundError:
+        return None, "file not found: %s" % path
+    except PermissionError:
+        return None, "permission denied reading %s" % path
+    except OSError as error:
+        return None, "could not read %s: %s" % (path, error)
+    finally:
+        if source_fd >= 0:
+            os.close(source_fd)
+
+    if len(content) > MAX_INPUT_BYTES:
+        measured_size = max(metadata.st_size, len(content))
+        return None, (
+            "%s is %d bytes; this command audits files up to %d bytes because "
+            "rule-audit's contradiction pass is O(n^2) in parsed rules. Run "
+            "`rule-audit --file=%s` directly to audit it anyway."
+            % (path, measured_size, MAX_INPUT_BYTES, _shell_quote(path))
+        )
+
+    snapshot_fd = -1
+    snapshot_path: Optional[str] = None
+    try:
+        snapshot_fd, snapshot_path = tempfile.mkstemp(prefix="rule-audit-", suffix=".txt")
+        with os.fdopen(snapshot_fd, "wb") as snapshot:
+            snapshot_fd = -1
+            snapshot.write(content)
+    except OSError as error:
+        if snapshot_fd >= 0:
+            os.close(snapshot_fd)
+        if snapshot_path is not None:
+            try:
+                os.unlink(snapshot_path)
+            except OSError:
+                pass
+        return None, "could not create a bounded input snapshot: %s" % error
+    return snapshot_path, None
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = _ArgumentParser(
         prog="audit_report.py",
@@ -378,26 +437,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     path = args.path
 
-    if not os.path.exists(path):
-        return _fail("file not found: %s" % path)
-    if os.path.isdir(path):
-        return _fail("%r is a directory; pass a single prompt file." % path)
-    if not os.path.isfile(path):
-        return _fail("%r is not a regular file; pass a single prompt file." % path)
-    try:
-        size = os.path.getsize(path)
-    except OSError as error:
-        return _fail("could not stat %s: %s" % (path, error))
-    if size > MAX_INPUT_BYTES:
-        return _fail(
-            "%s is %d bytes; this command audits files up to %d bytes because "
-            "rule-audit's contradiction pass is O(n^2) in parsed rules. Run "
-            "`rule-audit --file=%s` directly to audit it anyway."
-            % (path, size, MAX_INPUT_BYTES, _shell_quote(path))
-        )
+    snapshot_path, input_error = _snapshot_input(path)
+    if input_error is not None:
+        return _fail(input_error)
+    assert snapshot_path is not None
 
     command, rejections = resolve_runtime()
     if command is None:
+        try:
+            os.unlink(snapshot_path)
+        except OSError:
+            pass
         detail = ("Found: " + "; ".join(rejections) + ". ") if rejections else ""
         return _fail(
             "no rule-audit %s or newer available. %s"
@@ -411,17 +461,23 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
 
     try:
-        completed = subprocess.run(
-            command + _cli_arguments(path),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=120,
-        )
-    except subprocess.TimeoutExpired:
-        return _fail("audit of %s timed out after 120s." % path)
-    except (OSError, subprocess.SubprocessError) as error:
-        return _fail("could not run %s: %s" % (" ".join(command), error))
+        try:
+            completed = subprocess.run(
+                command + _cli_arguments(snapshot_path),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            return _fail("audit of %s timed out after 120s." % path)
+        except (OSError, subprocess.SubprocessError) as error:
+            return _fail("could not run %s: %s" % (" ".join(command), error))
+    finally:
+        try:
+            os.unlink(snapshot_path)
+        except OSError:
+            pass
 
     if completed.returncode == 1:
         return _fail((completed.stderr or "the audit failed.").strip())
