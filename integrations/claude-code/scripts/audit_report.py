@@ -382,6 +382,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _fail("file not found: %s" % path)
     if os.path.isdir(path):
         return _fail("%r is a directory; pass a single prompt file." % path)
+    if not os.path.isfile(path):
+        return _fail("%r is not a regular file; pass a single prompt file." % path)
     try:
         size = os.path.getsize(path)
     except OSError as error:
