@@ -51,8 +51,10 @@ but for prompts.
    - `[rule-audit status 1]` — the audit did not run (file missing, file too
      large, no suitable `rule-audit` installed). The message says what to do;
      relay it.
-   - **No status line at all** means the adapter never ran. Say so; do not treat
-     a missing report as a clean result.
+   - **No status line at all** means the result is incomplete: either the
+     adapter never ran, or a downstream pipe closed after receiving only the
+     report prefix. Do not infer that it never ran solely from the missing
+     status, and do not treat a missing report as a clean result.
 
 4. **Report to the user.** Summarise; do not paste the whole report back. Lead
    with the finding families whose counts are non-zero, and quote the specific

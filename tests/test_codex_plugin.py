@@ -364,6 +364,8 @@ def test_the_skill_states_every_status_including_the_missing_one():
     for status in (0, 1, 2):
         assert "[rule-audit status %d]" % status in body
     assert "No status line at all" in body
+    assert "downstream pipe closed" in body
+    assert "Do not infer that it never ran solely" in body
     assert "finding, not a" in body
 
 
@@ -835,8 +837,8 @@ def test_a_closed_pipe_does_not_become_a_nonzero_exit(capsys, tmp_path):
     The model composes the shell call, so it can pipe this into `head`. Left
     uncaught, `BrokenPipeError` escapes the flush in `_emit`, Python reports
     "Exception ignored while flushing sys.stdout" at shutdown, and the process
-    exits 120 — a non-zero exit with no status line, which is precisely the
-    signal SKILL.md defines as "the adapter never ran".
+    exits 120 — a non-zero exit with no status line, which SKILL.md correctly
+    treats as incomplete rather than proof that the adapter never ran.
 
     `${PIPESTATUS[0]}` is the assertion — it is the *wrapper's* exit status
     rather than `head`'s — and it is a bashism, so this asks for bash by path
