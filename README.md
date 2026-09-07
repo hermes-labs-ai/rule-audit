@@ -91,6 +91,27 @@ pre-commit run rule-audit --all-files
 
 The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conventional system, developer, and agent prompt/instruction filenames. It reports every matched file and preserves the CLI exit codes above. Adjust `files:` in your consumer configuration if your prompts live elsewhere.
 
+### Claude Code
+
+A native plugin adds one slash command, so you can audit a prompt file without
+leaving the session:
+
+```bash
+claude --plugin-dir ./integrations/claude-code
+```
+
+```
+/rule-audit:audit prompts/support_agent.md
+```
+
+It runs this CLI locally and returns a bounded report — at most 5 findings per
+family, with the true totals and the command to see the rest — plus the caveats
+needed to read a `HIGH` label correctly. Nothing runs unless you ask for it.
+
+See [`integrations/claude-code/README.md`](integrations/claude-code/README.md)
+for install, disable and uninstall, and for the measurements behind the decision
+to ship a command rather than an automatic edit-time hook.
+
 ### Machine-readable result envelope
 
 For tooling that compares results across tools, the same audit can be emitted
