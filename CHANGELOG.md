@@ -4,6 +4,11 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- The calibration corpus was not in the published 0.3.0 wheel: `rule_audit.calibration.DEFAULT_CASES_DIR` pointed at a repo-level `calibration/cases/` directory that no install has, so `python -m rule_audit.evidence --case negative_clean_prompt` exited 1 (`input.unknown-case`) from a PyPI install while passing from a source checkout. The cases now live in `rule_audit/calibration_cases/` as package data, and `tests/test_packaging.py` builds the distribution with `python -m build` and runs that command from the built wheel outside the checkout. Envelope `source` labels are unchanged.
+
 ## [0.3.0] — 2026-09-07
 
 ### Added

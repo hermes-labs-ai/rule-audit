@@ -47,6 +47,7 @@ dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "mypy>=1.0",
+    "build>=1.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -54,7 +55,7 @@ where = ["."]
 include = ["rule_audit*"]
 
 [tool.setuptools.package-data]
-rule_audit = ["py.typed"]
+rule_audit = ["py.typed", "calibration_cases/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,7 +1,7 @@
 """
 tests/test_calibration.py
 
-Regression gate for the labeled calibration corpus in calibration/cases/.
+Regression gate for the labeled calibration corpus in rule_audit/calibration_cases/.
 Each case is a hand-labeled ground-truth prompt; if a detector change makes
 a case fail, that's either a real regression or a legitimate calibration
 shift that the case files must be updated to reflect in the same PR.
@@ -9,7 +9,31 @@ shift that the case files must be updated to reflect in the same PR.
 
 from __future__ import annotations
 
-from rule_audit.calibration import evaluate_case, load_cases, run_calibration
+from pathlib import Path
+
+import rule_audit
+from rule_audit.calibration import (
+    DEFAULT_CASES_DIR,
+    evaluate_case,
+    load_cases,
+    run_calibration,
+)
+
+
+def test_default_cases_dir_is_package_data():
+    """The corpus must ship inside the installed package.
+
+    Regression for the 0.3.0 wheel: DEFAULT_CASES_DIR pointed at a repo-level
+    ``calibration/cases`` directory that escaped the package root, so a fresh
+    PyPI install had no cases and ``--case negative_clean_prompt`` failed with
+    ``input.unknown-case``.
+    """
+    package_root = Path(rule_audit.__file__).resolve().parent
+    assert package_root in DEFAULT_CASES_DIR.resolve().parents, (
+        f"DEFAULT_CASES_DIR {DEFAULT_CASES_DIR} is outside the rule_audit package "
+        f"{package_root}; it will not be shipped in the wheel"
+    )
+    assert (DEFAULT_CASES_DIR / "negative_clean_prompt.json").is_file()
 
 
 def test_corpus_is_non_empty():

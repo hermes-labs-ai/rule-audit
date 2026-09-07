@@ -13,10 +13,16 @@ contradiction).
 
 ## Layout
 
+The case files live inside the `rule_audit` package (as setuptools
+package data) so that a wheel install ships them; this directory holds only
+the documentation. Evidence envelopes keep labeling the source as
+`calibration/cases/<id>.json`.
+
 ```
 calibration/
-├── README.md
-└── cases/
+└── README.md
+rule_audit/
+└── calibration_cases/
     ├── absoluteness_dilemma.json
     ├── absoluteness_issue_present.json
     ├── conditional_contradiction.json
@@ -74,7 +80,7 @@ pytest tests/test_calibration.py -v
 
 1. Write the prompt and run `python -c "from rule_audit import audit; ..."` to see
    what the detectors actually produce — don't guess the expected block.
-2. Add the JSON file to `calibration/cases/`.
+2. Add the JSON file to `rule_audit/calibration_cases/`.
 3. Run `python -m rule_audit.calibration` to confirm it passes.
 4. If a detector legitimately changes behavior, update the affected case
    files in the same PR (mirrors the `tests/test_benchmark.py` policy for
