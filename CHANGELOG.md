@@ -4,6 +4,14 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `python -m rule_audit.evidence`: emit an audit as a Hermes Reliability Lab result envelope (tool, version, status, input hash, per-finding source spans, exit code, timestamp, Git commit) with the ordinary JSON report embedded verbatim. `--case ID` runs a labeled calibration case. No detection or scoring change.
+
+### Fixed
+- JSON and Markdown output were not byte-stable across processes: `shared_keywords` and shared-cluster lists were built from string sets, whose order follows the per-process hash seed. They now keep source order. Members are unchanged; only their order is fixed.
+
 ## [0.2.0] — 2026-09-04
 
 Problem: a flagged contradiction or gap was hard to trust or act on — there

@@ -265,7 +265,11 @@ _KEYWORD_CLUSTERS: dict[str, list[str]] = {
 
 
 def _shared_clusters(rule_a: Rule, rule_b: Rule) -> list[str]:
-    """Return clusters that both rules participate in."""
+    """Return clusters that both rules participate in, in cluster-table order.
+
+    Order is part of the output (it is interpolated into descriptions and
+    serialized), so it must not depend on the per-process string hash seed.
+    """
 
     def clusters_for(rule: Rule) -> set[str]:
         result = set()
@@ -275,11 +279,20 @@ def _shared_clusters(rule_a: Rule, rule_b: Rule) -> list[str]:
                 result.add(cluster)
         return result
 
-    return list(clusters_for(rule_a) & clusters_for(rule_b))
+    shared = clusters_for(rule_a) & clusters_for(rule_b)
+    return [cluster for cluster in _KEYWORD_CLUSTERS if cluster in shared]
 
 
 def _shared_keywords(rule_a: Rule, rule_b: Rule) -> list[str]:
-    return list(set(rule_a.keywords) & set(rule_b.keywords))
+    """Keywords both rules carry, in the order rule_a mentions them."""
+    in_b = set(rule_b.keywords)
+    seen: set[str] = set()
+    shared: list[str] = []
+    for keyword in rule_a.keywords:
+        if keyword in in_b and keyword not in seen:
+            seen.add(keyword)
+            shared.append(keyword)
+    return shared
 
 
 def _is_direct_contradiction(rule_a: Rule, rule_b: Rule) -> Optional[Contradiction]:
