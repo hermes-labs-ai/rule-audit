@@ -179,21 +179,50 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
     `killpg` reaches every descendant. On Windows there is no `setsid`, so this
     shells out to `taskkill /T`, which walks the child tree by PID.
 
-    The return value is not decoration. Both mechanisms can fail — a race
-    against a process that has already exited, a permissions refusal, a
-    `taskkill` that is not on `PATH` — and the caller words the message it shows
-    the user differently when the analyzer may still be alive. Reporting
-    "stopped" for something that was not stopped is the defect this whole
-    function exists to prevent; doing it in the failure branch would be the same
-    defect in a smaller place.
+    The POSIX branch signals the process group by *number*, not by looking it
+    up through `os.getpgid(process.pid)`. That lookup is a real race, not a
+    hypothetical one: `start_new_session=True` makes the adapter the leader of
+    a new session, so its PGID equals its PID at the moment it is created — we
+    already know the number. Querying it anyway fails exactly when it matters
+    most: if the adapter itself has already exited while its `rule-audit`
+    grandchild is still running and holding the inherited stdout/stderr pipes
+    (which is why `communicate()` timed out at all), `process.pid` no longer
+    names a live process, `getpgid` raises `ProcessLookupError`, and the
+    fallback `process.kill()` cannot reach a PID that is already gone —
+    leaving the live grandchild unsignalled. Killing by the known PGID number
+    has no such lookup step to race. (Found by `hermes-gate review`, critical,
+    on the identical shape in the Hermes Agent lane's wrapper, then fixed here
+    too before this ever shipped with the bug.)
+
+    The return value is not decoration. Both mechanisms can fail — most
+    plausibly a permissions refusal, or `taskkill` not on `PATH` — and the
+    caller words the message it shows the user differently when the analyzer
+    may still be alive. Reporting "stopped" for something that was not
+    stopped is the defect this whole function exists to prevent; doing it in
+    the failure branch would be the same defect in a smaller place.
+
+    The final fallback kill is guarded for the same reason. `process.pid` can
+    already be gone by the time execution reaches it — that is exactly the
+    race the PGID fix above closes for the group, but `process.kill()` on the
+    adapter's own PID can independently raise `ProcessLookupError` in the
+    same race (the adapter died first; only its grandchild survived). Left
+    unguarded, that exception would escape this function entirely, replacing
+    the `TimeoutExpired` `_run_adapter` is in the middle of handling — so
+    `run()` would never reach its timeout message at all, reporting a
+    confusing raw `OSError` instead of the true "the analyzer may still be
+    running" outcome. (Found by `hermes-gate review`, critical, on this exact
+    line in the Hermes Agent lane's wrapper immediately after the PGID fix
+    shipped there — fixed here in the same commit rather than shipping it.)
     """
     if _NEW_SESSION and hasattr(os, "killpg"):
         try:
-            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            os.killpg(process.pid, signal.SIGKILL)
             return True
         except (OSError, ProcessLookupError):
-            # Already gone, or no permission — fall through to the direct kill,
-            # which is still better than leaving the adapter alive.
+            # The whole group is already gone (nothing left to signal — the
+            # good case) or signalling it was refused. Either way, fall
+            # through to the direct kill on `process.pid` itself, which is
+            # still strictly better than doing nothing.
             pass
     elif os.name == "nt":
         try:
@@ -207,7 +236,13 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
                 return True
         except (OSError, subprocess.SubprocessError):
             pass
-    process.kill()
+    try:
+        process.kill()
+    except (OSError, ProcessLookupError):
+        # Already gone. Whatever was still alive when the mechanisms above
+        # ran either got signalled by them or was never reachable this way;
+        # there is nothing further this function can do.
+        pass
     return False
 
 

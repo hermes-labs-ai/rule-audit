@@ -538,10 +538,18 @@ def test_kill_process_tree_reports_whether_it_reached_the_tree(monkeypatch):
             killed.append("direct")
 
     if wrapper._NEW_SESSION:
-        monkeypatch.setattr(wrapper.os, "getpgid", lambda pid: pid)
-        monkeypatch.setattr(wrapper.os, "killpg", lambda pgid, sig: None)
+        calls = []
+        monkeypatch.setattr(
+            wrapper.os, "killpg", lambda pgid, sig: calls.append(pgid) or None
+        )
         assert wrapper._kill_process_tree(_Fake()) is True
         assert killed == []
+        # Signalled by the known PGID directly, not looked up through
+        # `getpgid`. That lookup is the race `hermes-gate review` found: it
+        # fails exactly when the adapter has already exited but its
+        # grandchild is still alive holding the pipes open, which is the one
+        # case this function has to reach.
+        assert calls == [4242]
 
         def _boom(pgid, sig):
             raise OSError("no such process group")
@@ -549,6 +557,61 @@ def test_kill_process_tree_reports_whether_it_reached_the_tree(monkeypatch):
         monkeypatch.setattr(wrapper.os, "killpg", _boom)
         assert wrapper._kill_process_tree(_Fake()) is False
         assert killed == ["direct"]
+
+
+def test_kill_process_tree_survives_a_final_kill_that_also_fails(monkeypatch):
+    """The direct fallback `process.kill()` can independently race and lose.
+
+    `_kill_process_tree` is called from inside `except subprocess.TimeoutExpired`
+    in `_run_adapter`. An exception escaping it here would replace the
+    `TimeoutExpired` that block is handling, so `run()` would never reach its
+    timeout message — the user would see a raw `OSError` instead of the honest
+    "may still be running" outcome this whole function exists to produce.
+    """
+    wrapper = _load_wrapper()
+
+    class _AlreadyGone:
+        pid = 4242
+
+        def kill(self):
+            raise ProcessLookupError("no such process")
+
+    # Force execution to reach the final fallback regardless of platform: on
+    # POSIX, make the process-group branch also fail first.
+    if wrapper._NEW_SESSION:
+        monkeypatch.setattr(
+            wrapper.os,
+            "killpg",
+            lambda pgid, sig: (_ for _ in ()).throw(OSError("no such process group")),
+        )
+    result = wrapper._kill_process_tree(_AlreadyGone())
+    assert result is False
+
+
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups are POSIX-only")
+def test_kill_process_tree_never_looks_up_the_process_group(monkeypatch):
+    """The exact regression `hermes-gate review` found on the Hermes Agent
+    lane's identical wrapper: `getpgid(process.pid)` races against the adapter
+    exiting before its grandchild does, at which point the lookup raises and
+    the live grandchild is never signalled. The PGID equals the PID by
+    construction (`start_new_session=True`), so nothing should ever call
+    `getpgid` here.
+    """
+    wrapper = _load_wrapper()
+
+    class _Fake:
+        pid = 4242
+
+        def kill(self):
+            pass
+
+    def _must_not_be_called(pid):
+        raise AssertionError("getpgid was called — the lookup race is back")
+
+    monkeypatch.setattr(wrapper.os, "getpgid", _must_not_be_called)
+    monkeypatch.setattr(wrapper.os, "killpg", lambda pgid, sig: None)
+    assert wrapper._NEW_SESSION, "expected POSIX to take the process-group branch"
+    assert wrapper._kill_process_tree(_Fake()) is True
 
 
 @pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
