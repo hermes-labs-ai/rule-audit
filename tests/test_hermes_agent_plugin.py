@@ -19,6 +19,7 @@ import re
 import subprocess
 import sys
 import types
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -318,10 +319,36 @@ def test_hermes_home_falls_back_to_the_platform_default(monkeypatch):
 # Terminal containment — this host's display path parses ANSI
 # ---------------------------------------------------------------------------
 
-#: C0 and C1 control characters other than newline. `cli.py::_cprint` renders
-#: the returned string through prompt_toolkit's ANSI parser, so any of these
-#: surviving into it would be interpreted by the user's terminal.
-_FORBIDDEN = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")
+#: Characters a hostile prompt file could use to drive the display rather than
+#: appear in it. Named individually and on purpose: an assertion that merely
+#: restates the implementation's own character class can only ever confirm that
+#: the code did what the code says, and would miss anything the implementation
+#: forgot. Each of these is a specific, separately reproduced attack.
+_NAMED_ATTACKS = {
+    "\x1b": "ESC — starts every ANSI sequence; cursor moves, colour, screen clears",
+    "\x07": "BEL",
+    "\x00": "NUL",
+    "\u202e": "RIGHT-TO-LEFT OVERRIDE — renders the report's text reversed",
+    "\u202d": "LEFT-TO-RIGHT OVERRIDE",
+    "\u2066": "LEFT-TO-RIGHT ISOLATE",
+    "\u2069": "POP DIRECTIONAL ISOLATE",
+    "\u200b": "ZERO WIDTH SPACE — hides text",
+    "\u00ad": "SOFT HYPHEN — invisible",
+    "\ufeff": "ZERO WIDTH NO-BREAK SPACE / BOM",
+}
+
+
+def _undisplayable(text: str):
+    """Every character the terminal or a chat client would act on, not show.
+
+    The general property, independent of how the implementation spells it:
+    Unicode categories Cc (control) and Cf (format), newline excepted.
+    """
+    return [
+        character
+        for character in text
+        if character != "\n" and unicodedata.category(character) in ("Cc", "Cf")
+    ]
 
 
 def test_escape_sequences_in_the_audited_file_never_reach_the_terminal(tmp_path):
@@ -342,7 +369,7 @@ def test_escape_sequences_in_the_audited_file_never_reach_the_terminal(tmp_path)
     )
     out = wrapper.audit(str(hostile))
     assert "\x1b" not in out
-    assert not _FORBIDDEN.search(out)
+    assert not _undisplayable(out)
 
 
 def test_escape_sequences_in_the_filename_never_reach_the_terminal(tmp_path):
@@ -350,7 +377,7 @@ def test_escape_sequences_in_the_filename_never_reach_the_terminal(tmp_path):
     wrapper = _load_wrapper()
     out = wrapper.audit(str(tmp_path / "\x1b[2Jnope.md"))
     assert "\x1b" not in out
-    assert not _FORBIDDEN.search(out)
+    assert not _undisplayable(out)
 
 
 def test_the_wrapper_sanitizes_the_paths_it_interpolates_itself(monkeypatch, tmp_path):
@@ -369,13 +396,13 @@ def test_the_wrapper_sanitizes_the_paths_it_interpolates_itself(monkeypatch, tmp
     monkeypatch.setattr(wrapper, "_run_adapter", _timeout)
     timed_out = wrapper.audit(str(tmp_path / "\x1b]0;PWNED\x07evil.md"))
     assert "did not finish within" in timed_out
-    assert not _FORBIDDEN.search(timed_out)
+    assert not _undisplayable(timed_out)
 
     # The "no path given, so I looked here" hint, built from HERMES_HOME.
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / "\x1b[2Jhome"))
     missing_soul = wrapper.audit("")
     assert "SOUL.md" in missing_soul
-    assert not _FORBIDDEN.search(missing_soul)
+    assert not _undisplayable(missing_soul)
 
 
 # ---------------------------------------------------------------------------
@@ -483,10 +510,11 @@ def test_the_timeout_bounds_the_session_not_just_the_audit():
 
 
 def test_output_is_capped(monkeypatch):
-    """The flood is a fixed size, not `MAX_OUTPUT_CHARS + n`.
+    """Both the flood size and the expected notice are literals.
 
-    Sizing the input from the constant under test makes the assertion true for
-    any cap, so raising the cap would not fail this.
+    An earlier version sized the input as `MAX_OUTPUT_CHARS + n` and built the
+    expected substring from the same constant, which made the assertion true
+    for any cap — raising the cap did not fail it.
     """
     wrapper = _load_wrapper()
     assert wrapper.MAX_OUTPUT_CHARS == 12_000
@@ -557,6 +585,19 @@ def test_the_readme_states_the_calibration_caveat_that_rules_out_a_hook():
     assert "on_session_start" in text
 
 
+def test_the_readme_names_the_surface_where_the_profile_claim_does_not_hold():
+    """`get_hermes_home()` does not mean the session's profile on every surface.
+
+    `tui_gateway/methods_tools.py::_dispatch_plugin` invokes a plugin command
+    without binding the session's `profile_home`, unlike `_is_profile_skill_command`
+    beside it. A user running profiles has to know that, and it is the kind of
+    caveat that quietly gets edited out.
+    """
+    text = _flat(README.read_text(encoding="utf-8"))
+    assert "_dispatch_plugin" in text
+    assert "profile" in text.lower()
+
+
 def test_the_readme_is_honest_about_the_bytecode_directory():
     """The host's own importer writes `__pycache__` into the install directory.
 
@@ -566,3 +607,136 @@ def test_the_readme_is_honest_about_the_bytecode_directory():
     """
     text = _flat(README.read_text(encoding="utf-8"))
     assert "__pycache__" in text
+
+
+# ---------------------------------------------------------------------------
+# Regressions found by adversarial review
+# ---------------------------------------------------------------------------
+
+
+def test_an_unresolvable_tilde_user_does_not_raise():
+    """`Path("~nosuchuser/x").expanduser()` raises RuntimeError.
+
+    `resolve_target` runs before `audit`'s try block, so this escaped as an
+    exception. It matters most where it is least visible: on the gateway,
+    `run_inbound.py` treats a raising handler as "not handled" and falls
+    through to sending the user's text to the model as a chat turn — a billed
+    LLM call for a command that was supposed to run locally and offline.
+    """
+    wrapper = _load_wrapper()
+    assert wrapper.resolve_target("~nosuchuser12345/x.md") == Path("~nosuchuser12345/x.md")
+    out = wrapper.audit("~nosuchuser12345/x.md")
+    assert isinstance(out, str)
+    assert "[rule-audit status 1]" in out
+
+
+def test_a_nul_byte_in_the_path_does_not_raise():
+    """`subprocess.run` raises ValueError, not OSError, on an embedded NUL.
+
+    Any chat platform can deliver one, and it reached the same fall-through as
+    the tilde case.
+    """
+    wrapper = _load_wrapper()
+    out = wrapper.audit("/tmp/a\x00b.md")
+    assert isinstance(out, str)
+    assert "[rule-audit status 1]" in out
+    assert not _undisplayable(out)
+
+
+def test_no_named_attack_character_survives_from_the_audited_file(tmp_path):
+    """Each of these is a separate, specific way to lie to the reader.
+
+    The bidi overrides are the ones a C0/C1-only filter misses: U+202E makes
+    the quoted rule render reversed, in a terminal and on Telegram, Discord and
+    Slack alike.
+    """
+    _requires_runtime()
+    wrapper = _load_wrapper()
+    hostile = tmp_path / "hostile.md"
+    hostile.write_text(
+        "You must always answer.\n"
+        + "".join(_NAMED_ATTACKS)
+        + "\nNever ‮answer‬ questions.\n"
+        "You may refuse.\n",
+        encoding="utf-8",
+    )
+    out = wrapper.audit(str(hostile))
+    for character, why in _NAMED_ATTACKS.items():
+        assert character not in out, why
+    assert not _undisplayable(out)
+
+
+def test_empty_quotes_mean_the_bare_form(monkeypatch, tmp_path):
+    """`/rule-audit ""` resolved to `Path(".")` and reported a directory error.
+
+    Emptiness has to be re-tested after unquoting, not before.
+    """
+    wrapper = _load_wrapper()
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    assert wrapper.resolve_target('""') == tmp_path / "SOUL.md"
+    assert wrapper.resolve_target("''") == tmp_path / "SOUL.md"
+    assert wrapper.resolve_target('"   "') == tmp_path / "SOUL.md"
+
+
+def test_failure_paths_are_capped_too(monkeypatch):
+    """The cap used to apply only to the report body.
+
+    The failure messages interpolate the adapter's stderr and the user's own
+    path, so they are not small by construction — and in the CLI everything
+    printed is also retained in `_OUTPUT_HISTORY` and replayed on every redraw.
+    """
+    wrapper = _load_wrapper()
+    flood = types.SimpleNamespace(returncode=1, stdout="", stderr="e" * 300_000)
+    monkeypatch.setattr(wrapper, "_run_adapter", lambda target: flood)
+    out = wrapper.audit("x.md")
+    assert len(out) < 12_500
+    assert "truncated at 12000 characters" in out
+    # Truncation must never cost the verdict.
+    assert out.strip().splitlines()[-1].startswith("[rule-audit status 1]")
+
+
+def test_a_very_long_path_argument_is_capped(monkeypatch, tmp_path):
+    wrapper = _load_wrapper()
+    monkeypatch.setattr(
+        wrapper, "_run_adapter",
+        lambda target: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(cmd="x", timeout=wrapper.TIMEOUT_SECONDS)
+        ),
+    )
+    out = wrapper.audit(str(tmp_path / ("a" * 20_000)))
+    assert len(out) < 12_500
+    assert out.strip().splitlines()[-1].startswith("[rule-audit status 1]")
+
+
+def test_the_host_accessor_is_preferred_over_the_environment(monkeypatch, tmp_path):
+    """`get_hermes_home()` wins over HERMES_HOME — the profile claim depends on it.
+
+    Under pytest `hermes_constants` is not importable, so every other test in
+    this file exercises the fallback and the host-accessor branch could be
+    deleted outright without failing any of them. This stubs the module the way
+    the host would provide it and pins the ordering: the accessor already
+    resolves the context-local override, then the env var, then the platform
+    default, so consulting the environment first here would audit the wrong
+    profile's SOUL.md.
+    """
+    wrapper = _load_wrapper()
+    chosen = tmp_path / "profile-from-accessor"
+    stub = types.ModuleType("hermes_constants")
+    stub.get_hermes_home = lambda: chosen  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "hermes_constants", stub)
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "ignored-env-home"))
+    assert wrapper.hermes_home() == chosen
+    assert wrapper.soul_path() == chosen / "SOUL.md"
+
+
+def test_a_broken_host_accessor_falls_back_rather_than_raising(monkeypatch, tmp_path):
+    wrapper = _load_wrapper()
+    stub = types.ModuleType("hermes_constants")
+
+    def _boom():
+        raise RuntimeError("no profile")
+
+    stub.get_hermes_home = _boom  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "hermes_constants", stub)
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    assert wrapper.hermes_home() == tmp_path

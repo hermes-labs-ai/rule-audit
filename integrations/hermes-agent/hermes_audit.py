@@ -64,8 +64,8 @@ plugin README.
 from __future__ import annotations
 
 import os
-import re
 import subprocess
+import unicodedata
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -104,14 +104,33 @@ _USAGE = "Usage: /rule-audit [path]  —  with no path, audits your SOUL.md."
 #: relayed from the adapter reads `rule-audit: rule-audit: file not found`.
 _ADAPTER_PREFIX = "rule-audit: "
 
-#: Every C0/C1 control character except newline. Newline is the report's own
-#: line structure and is safe; the rest reach a prompt_toolkit ANSI parser.
-_CONTROL_EXCEPT_NEWLINE = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")
+#: Unicode general categories that are never displayed as themselves: Cc is the
+#: C0/C1 control characters, Cf the format characters. Newline is exempt because
+#: it is the report's own line structure.
+#:
+#: Cf matters as much as Cc here and is easy to miss. It carries the bidi
+#: overrides (U+202A-202E, U+2066-2069): a rule quoted out of a hostile prompt
+#: file containing U+202E renders right-to-left from that point, so the report
+#: can be made to show the reverse of what was found — in a terminal, and on
+#: Telegram, Discord and Slack, all of which apply the bidi algorithm. It also
+#: carries the zero-width and invisible characters (U+200B, U+00AD, U+FEFF)
+#: that hide text outright.
+#:
+#: Matching on the category rather than a hand-written range list is deliberate:
+#: an explicit list is exactly as incomplete as whoever wrote it, and this text
+#: comes out of a file the user has been told not to trust.
+_DISPLAYABLE_EXEMPT = "\n"
 
 
 def _sanitize(text: str) -> str:
-    """Neutralise anything the terminal would interpret rather than display."""
-    return _CONTROL_EXCEPT_NEWLINE.sub(" ", text)
+    """Neutralise anything the terminal or a chat client would act on rather than show."""
+    return "".join(
+        character
+        if character in _DISPLAYABLE_EXEMPT
+        or unicodedata.category(character) not in ("Cc", "Cf")
+        else " "
+        for character in text
+    )
 
 
 def hermes_home() -> Path:
@@ -143,22 +162,45 @@ def soul_path() -> Path:
     return hermes_home() / "SOUL.md"
 
 
+def _clean_arg(raw_args: str) -> str:
+    """The typed argument with surrounding whitespace and one quote pair removed.
+
+    Users type quotes out of shell habit, and `/rule-audit ""` means the same
+    thing as `/rule-audit` — so emptiness is re-tested after unquoting rather
+    than before, which is what keeps `""` from resolving to `Path(".")` and
+    reporting that the current directory is not a file.
+    """
+    text = raw_args.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    return text
+
+
 def resolve_target(raw_args: str) -> Path:
     """Turn the raw argument string into the path to audit.
 
-    The host hands over everything typed after the command name as one
-    unsplit string and no shell is involved, so a path containing spaces is
-    simply itself — splitting it into words would break exactly the filenames
-    that need no escaping. One layer of matching surrounding quotes is removed
-    because users type them out of shell habit, and `~` is expanded because
-    there is no shell here to do it.
+    The host hands over everything typed after the command name as one unsplit
+    string and no shell is involved, so a path containing spaces is simply
+    itself — splitting it into words would break exactly the filenames that need
+    no escaping. `~` is expanded because there is no shell here to do it.
+
+    `expanduser()` raises rather than returning the input for `~nosuchuser`, and
+    on a system where the home directory cannot be determined at all. This must
+    not raise: `audit()` calls it before its own try block, and a slash-command
+    handler that raises is not merely ugly — on the gateway,
+    `run_inbound.py` treats the exception as "not handled" and falls through to
+    sending the user's text to the model as an ordinary chat turn, which is a
+    billed LLM call for a command that was supposed to run locally.
     """
-    text = raw_args.strip()
+    text = _clean_arg(raw_args)
     if not text:
         return soul_path()
-    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
-        text = text[1:-1]
-    return Path(text).expanduser()
+    try:
+        return Path(text).expanduser()
+    except (RuntimeError, OSError):
+        # An unresolvable `~user` is not a path this can audit, but the adapter
+        # saying "file not found: ~nosuchuser/x.md" is a true and useful answer.
+        return Path(text)
 
 
 def _status_line(status: int) -> str:
@@ -192,36 +234,62 @@ def _run_adapter(target: Path) -> "subprocess.CompletedProcess[str]":
     )
 
 
+def _finish(message: str, status: int) -> str:
+    """The single exit for every path: cap, append the status line, sanitize.
+
+    Routing all six returns through here is what makes the three output
+    guarantees unconditional. Capping only the report body, as an earlier
+    version did, left the failure paths unbounded — and they are not small by
+    construction: the adapter's stderr and the user's own path are both
+    interpolated into them, and in the CLI everything printed is also retained
+    in `_OUTPUT_HISTORY` and replayed on each redraw.
+
+    The status line is appended *after* truncation, so it survives it. A report
+    that lost its verdict to a length cap would be exactly the ambiguity the
+    line exists to remove.
+    """
+    message = message.rstrip()
+    if len(message) > MAX_OUTPUT_CHARS:
+        message = message[:MAX_OUTPUT_CHARS] + (
+            "\n\n[truncated at %d characters. Run `rule-audit --file` against the file "
+            "for the full report.]" % MAX_OUTPUT_CHARS
+        )
+    return _sanitize("%s\n\n%s" % (message, _status_line(status)))
+
+
 def audit(raw_args: str) -> str:
     """Handle `/rule-audit [path]`. Returns the text shown to the user.
 
-    Never raises: a slash command that raises surfaces as
-    `Plugin command error: ...` with no report and no usage hint, which is a
-    worse answer than any message this can return.
+    Never raises. A slash command that raises is handled differently by each
+    surface and badly by all three: the CLI prints `Plugin command error: ...`
+    with no report, the TUI reports the command as unrecognised, and the gateway
+    falls through and sends the user's message to the model as a chat turn.
     """
     target = resolve_target(raw_args)
-    used_default = not raw_args.strip()
+    used_default = not _clean_arg(raw_args)
 
     if not _ADAPTER_PATH.exists():
-        return _sanitize(
+        return _finish(
             "rule-audit: the plugin is incomplete — %s is missing. Reinstall with "
             "`hermes plugins install hermes-labs-ai/rule-audit/integrations/hermes-agent "
-            "--force`.\n%s" % (_ADAPTER_PATH, _status_line(1))
+            "--force`." % _ADAPTER_PATH,
+            1,
         )
 
     try:
         completed = _run_adapter(target)
     except subprocess.TimeoutExpired:
-        return _sanitize(
+        return _finish(
             "rule-audit: the audit of %s did not finish within %ds and was stopped, so "
             "your session stays responsive. Run `rule-audit --file` against it directly "
-            "to audit it without a time limit.\n%s"
-            % (target, TIMEOUT_SECONDS, _status_line(1))
+            "to audit it without a time limit." % (target, TIMEOUT_SECONDS),
+            1,
         )
-    except (OSError, subprocess.SubprocessError) as error:
-        return _sanitize(
-            "rule-audit: could not run the audit: %s\n%s" % (error, _status_line(1))
-        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        # ValueError is not decoration: `subprocess.run` raises it, not OSError,
+        # for an embedded NUL byte in the path — which any chat platform can
+        # deliver.
+        return _finish("rule-audit: could not run the audit: %s" % error, 1)
 
     status = completed.returncode
     body = (completed.stdout or "").rstrip()
@@ -234,21 +302,15 @@ def audit(raw_args: str) -> str:
         detail = problem or "the audit produced no report."
         if detail.startswith(_ADAPTER_PREFIX):
             detail = detail[len(_ADAPTER_PREFIX):]
-        hint = "" if raw_args.strip() else (
+        hint = "" if not used_default else (
             "\nNo path was given, so this looked for your SOUL.md at %s." % soul_path()
         )
-        return _sanitize("rule-audit: %s%s\n%s\n%s" % (detail, hint, _USAGE, _status_line(1)))
+        return _finish("rule-audit: %s%s\n%s" % (detail, hint, _USAGE), 1)
 
     if used_default:
         body = "Auditing your SOUL.md (%s) — no path was given.\n\n%s" % (soul_path(), body)
 
-    if len(body) > MAX_OUTPUT_CHARS:
-        body = body[:MAX_OUTPUT_CHARS] + (
-            "\n\n[truncated at %d characters. Run `rule-audit --file` against the file "
-            "for the full report.]" % MAX_OUTPUT_CHARS
-        )
-
-    return _sanitize("%s\n\n%s" % (body, _status_line(status)))
+    return _finish(body, status)
 
 
 def main(argv: Optional[List[str]] = None) -> int:

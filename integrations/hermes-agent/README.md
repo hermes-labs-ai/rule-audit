@@ -44,9 +44,18 @@ hermes plugins enable rule-audit
 ```
 
 Hermes clones the repository and copies only that subdirectory into
-`~/.hermes/plugins/rule-audit/`. Plugins are opt-in, so the `enable` step is
-required — a fresh install is inert until you run it. For a reproducible
+`~/.hermes/plugins/rule-audit/`. Plugins are opt-in, so a plugin does nothing
+until it is enabled: on a terminal the installer offers `Enable 'rule-audit'
+now? [y/N]`, and `--enable` / `--no-enable` answers it without the prompt. The
+separate `enable` command above is the explicit form. For a reproducible
 install, pin a full 40-character commit with `--ref`.
+
+The manifest deliberately declares no `manifest_version`, which means v1.
+Hermes 0.21.0's plugin *loader* accepts v2 but its *installer* does not
+(`plugins_manifest.SUPPORTED_MANIFEST_VERSION` is 2, `plugins_cmd.
+_SUPPORTED_MANIFEST_VERSION` is 1), so a v2 manifest loads from a hand-copied
+directory and then fails the documented install with "requires manifest_version
+2, but this installer only supports up to 1".
 
 To install from a local clone instead, copy `integrations/hermes-agent/` to
 `~/.hermes/plugins/rule-audit/` and run the `enable` command.
@@ -60,9 +69,10 @@ LLM provider or credentials, and cannot act on connected chat platforms.
 Type `/rule-audit` in any Hermes session. It appears in `/help`, in
 autocomplete, and in the Telegram bot's command menu.
 
-- `/rule-audit` — audits the `SOUL.md` of the active profile, resolved through
-  Hermes' own `get_hermes_home()`, so a non-default profile audits *its* SOUL.md.
-  The report names the file it chose.
+- `/rule-audit` — audits your `SOUL.md`, resolved through Hermes' own
+  `get_hermes_home()` rather than by assuming `~/.hermes`. **The report always
+  names the file it chose** — read that line, because which profile you get is
+  not the same on every surface (see below).
 - `/rule-audit <path>` — audits that file. The path is taken as typed: spaces
   need no escaping, `~` is expanded, and surrounding quotes are stripped if you
   add them out of habit.
@@ -159,6 +169,21 @@ restyling the message.
 Control characters are stripped from everything returned, because the CLI
 renders it through prompt_toolkit's ANSI parser and an escape sequence in an
 audited file would otherwise drive your terminal.
+
+## Which profile you get
+
+`get_hermes_home()` resolves the context-local override, then `HERMES_HOME`,
+then the platform default. In a **CLI session** that is your active profile, so
+`/rule-audit` audits that profile's SOUL.md.
+
+In the **TUI and the desktop app** it is not. `tui_gateway/methods_tools.py::
+_dispatch_plugin` invokes a plugin command without binding the session's
+`profile_home` — unlike `_is_profile_skill_command` directly above it, which
+binds it explicitly and whose docstring notes that nothing upstream does. So a
+TUI session opened on a non-default profile audits the *server process's* home,
+not the session's. This is a host limitation a plugin cannot fix from inside
+the handler, which is why the report names the file it audited: check that line
+if you use profiles. Pass the path explicitly to be certain.
 
 ## Disable and uninstall
 
