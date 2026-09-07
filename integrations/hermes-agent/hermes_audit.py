@@ -314,9 +314,13 @@ def audit(raw_args: str) -> str:
             1,
         )
     except (OSError, ValueError, subprocess.SubprocessError) as error:
-        # ValueError is not decoration: `subprocess.run` raises it, not OSError,
-        # for an embedded NUL byte in the path — which any chat platform can
-        # deliver.
+        # ValueError is not decoration, and it is doing two jobs. `subprocess.run`
+        # raises it (not OSError) for an embedded NUL byte in the path, and
+        # `UnicodeEncodeError` — raised when encoding an argv entry holding an
+        # unpaired surrogate, which a JSON `\ud800` escape from a chat surface
+        # can produce — is a *subclass* of ValueError, so it is caught here too.
+        # Do not narrow this to OSError: both escape the handler, and on the
+        # gateway an escaping exception becomes a billed model turn.
         return _finish("rule-audit: could not run the audit: %s" % error, 1)
 
     status = completed.returncode

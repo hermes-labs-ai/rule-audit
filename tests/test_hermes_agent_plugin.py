@@ -777,3 +777,17 @@ def test_the_handler_survives_any_resolution_failure(monkeypatch):
     assert "could not work out which file to audit" in out
     assert "resolution exploded" in out
     assert "[rule-audit status 1]" in out
+
+
+def test_an_unpaired_surrogate_in_the_path_does_not_raise():
+    """`UnicodeEncodeError` from encoding argv is a `ValueError` subclass.
+
+    A JSON `\\ud800` escape from a chat surface produces one. It is already
+    caught, and this pins that: narrowing the except tuple to `OSError` — which
+    reads like a tidy-up — would let it escape the handler.
+    """
+    wrapper = _load_wrapper()
+    assert issubclass(UnicodeEncodeError, ValueError)
+    out = wrapper.audit("/tmp/\ud800.md")
+    assert isinstance(out, str)
+    assert "[rule-audit status 1]" in out
