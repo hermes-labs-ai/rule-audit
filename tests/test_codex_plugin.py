@@ -1127,19 +1127,20 @@ def test_the_readme_admits_the_ambient_catalog_cost():
     assert "every turn" in text
 
 
-def test_the_readme_does_not_install_from_a_ref_it_says_has_no_index():
+def test_the_readmes_document_the_install_that_works_today():
     """The documented install command has to work on the day it is read.
 
     `codex plugin marketplace add` git-clones and then looks for
-    `.agents/plugins/marketplace.json` at the clone root, which is why the
-    README explains that `main` does not have that file yet — and then told the
-    reader to pass `--ref main`, the one ref its own paragraph rules out. Both
-    places that document the pre-merge command are checked, because the root
-    README repeats it.
+    `.agents/plugins/marketplace.json` at the clone root, so the ref it reads
+    is the remote's default branch. Before this plugin merged, the READMEs
+    said so and then told the reader to pass `--ref feat/codex-plugin`, which
+    was correct then and installs a stale copy of the plugin now. The index is
+    on `main`, so the bare form is the install.
 
-    The constraint retires itself: once the prose stops claiming `main` has no
-    index — which is true the moment this merges — `--ref main` and the bare
-    form are correct again and this asserts nothing.
+    Both places are checked, because the root README repeats the command, and
+    the assertion is unconditional on purpose: guarding it on the pre-merge
+    prose would let that whole paragraph come back — the exact regression this
+    pins — and take the check down with it.
     """
     root_readme = ROOT / "README.md"
     commands = [
@@ -1149,15 +1150,10 @@ def test_the_readme_does_not_install_from_a_ref_it_says_has_no_index():
         if line.strip().startswith("codex plugin marketplace add hermes-labs-ai/")
     ]
     assert len(commands) >= 2, "both READMEs should document the install command"
-
-    if "does not exist on `main` yet" not in _flat(README.read_text(encoding="utf-8")):
-        return  # merged: the default branch has the index, nothing to constrain
-
-    # `--ref main` is the one ref the prose rules out. The bare form is allowed
-    # to appear beside it as the post-merge example, which is why this checks
-    # the ref that is named rather than that a ref is always named.
-    assert all("--ref main" not in command for command in commands), commands
-    assert any("--ref " in command for command in commands), commands
+    assert all(
+        command == "codex plugin marketplace add hermes-labs-ai/rule-audit"
+        for command in commands
+    ), commands
     # The local-clone workflow takes no ref and must stay that way.
     assert "codex plugin marketplace add /path/to/rule-audit" in README.read_text(
         encoding="utf-8"
