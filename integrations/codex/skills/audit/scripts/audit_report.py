@@ -3,7 +3,7 @@
 
 This is a thin adapter over the installed `rule-audit` CLI. It adds nothing to
 detection and decides nothing about severity: it shells out to
-`rule-audit --file PATH --format json`, then prints a size-bounded rendering of
+`rule-audit --file=PATH --format json`, then prints a size-bounded rendering of
 what came back and re-raises the CLI's own exit code.
 
 Why an adapter script rather than letting the model compose the command:
@@ -259,6 +259,17 @@ def _render(path: str, data: Dict[str, Any], version_note: str) -> str:
     return "\n".join(lines)
 
 
+def _cli_arguments(path: str) -> List[str]:
+    """Arguments handed to the rule-audit CLI for `path`.
+
+    The equals form is what makes a dash-prefixed basename a filename: given
+    `--file -x`, argparse reads `-x` as another option and reports that
+    `--file` is missing its argument. The printed commands use the same form
+    for the same reason, so what the user pastes is what ran.
+    """
+    return ["--file=%s" % path, "--format", "json"]
+
+
 def _command_block(path: str) -> List[str]:
     """The copy-pasteable full-report commands, when the path can carry them.
 
@@ -269,13 +280,13 @@ def _command_block(path: str) -> List[str]:
     if _CONTROL.search(path):
         return [
             "The filename contains control characters, so the exact command "
-            "cannot be shown here. Run `rule-audit --file` against it directly "
-            "for the untruncated report.",
+            "cannot be shown here. Run `rule-audit --file=PATH` against it "
+            "directly for the untruncated report.",
         ]
     return [
         "```bash",
-        "rule-audit --file %s" % _shell_quote(path),
-        "rule-audit --file %s --min-severity high" % _shell_quote(path),
+        "rule-audit --file=%s" % _shell_quote(path),
+        "rule-audit --file=%s --min-severity high" % _shell_quote(path),
         "```",
     ]
 
@@ -334,6 +345,19 @@ def _shell_quote(path: str) -> str:
     return "'%s'" % path.replace("'", "'\\''")
 
 
+class _ArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser whose usage errors exit 1, not argparse's default 2.
+
+    2 is the HIGH/CRITICAL exit code this adapter re-raises, so a usage error
+    must not share it: a dash-prefixed path passed without `--` would
+    otherwise read as a finding.
+    """
+
+    def error(self, message: str) -> None:  # type: ignore[override]
+        self.print_usage(sys.stderr)
+        self.exit(1, "%s: error: %s\n" % (self.prog, message))
+
+
 def _fail(message: str) -> int:
     # Failure messages embed the path and the CLI's stderr, both of which can
     # carry control characters from an untrusted filename or file. Keep them to
@@ -343,11 +367,14 @@ def _fail(message: str) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(
+    parser = _ArgumentParser(
         prog="audit_report.py",
         description="Run rule-audit on one prompt file and print a bounded report.",
     )
-    parser.add_argument("path", help="Path to the prompt file to audit.")
+    parser.add_argument(
+        "path",
+        help="Path to the prompt file to audit. Put `--` before it if it starts with `-`.",
+    )
     args = parser.parse_args(argv)
     path = args.path
 
@@ -355,6 +382,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _fail("file not found: %s" % path)
     if os.path.isdir(path):
         return _fail("%r is a directory; pass a single prompt file." % path)
+    if not os.path.isfile(path):
+        return _fail("%r is not a regular file; pass a single prompt file." % path)
     try:
         size = os.path.getsize(path)
     except OSError as error:
@@ -363,7 +392,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _fail(
             "%s is %d bytes; this command audits files up to %d bytes because "
             "rule-audit's contradiction pass is O(n^2) in parsed rules. Run "
-            "`rule-audit --file %s` directly to audit it anyway."
+            "`rule-audit --file=%s` directly to audit it anyway."
             % (path, size, MAX_INPUT_BYTES, _shell_quote(path))
         )
 
@@ -383,7 +412,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     try:
         completed = subprocess.run(
-            command + ["--file", path, "--format", "json"],
+            command + _cli_arguments(path),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
