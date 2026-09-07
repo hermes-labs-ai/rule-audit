@@ -4,7 +4,7 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] — 2026-09-07
 
 ### Added
 - `python -m rule_audit.evidence`: emit an audit as a Hermes Reliability Lab result envelope (tool, version, status, input hash, per-finding source spans, exit code, timestamp, Git commit) with the ordinary JSON report embedded verbatim. `--case ID` runs a labeled calibration case. No detection or scoring change.
@@ -95,7 +95,8 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.1...v0.1.2
