@@ -15,11 +15,15 @@ the rest of the tests down with it.
 
 from __future__ import annotations
 
+import difflib
 import importlib.util
 import json
 import os
 import re
+import shlex
+import subprocess
 import sys
+import time
 import unicodedata
 from pathlib import Path
 
@@ -140,17 +144,67 @@ def _flat(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_vendored_adapter_is_identical_to_the_claude_code_adapter():
-    """The rendering exists once.
+#: The only lines of the Claude Code adapter this lane's copy is allowed to
+#: drop, and the reason it drops them: `subprocess.run` buffers the analyzer's
+#: whole stdout before any cap can be applied to it, so the bounded read in
+#: `_run_analyzer` replaces the call outright. Anything else disappearing from
+#: the copy is rendering drift, which is what the pin below exists to catch.
+_PERMITTED_DIVERGENCE = frozenset(
+    """  prints the exact command to see the rest.
+    try:
+        try:
+            completed = subprocess.run(
+                command + _cli_arguments(snapshot_path),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            return _fail("audit of %s timed out after 120s." % path)
+        except (OSError, subprocess.SubprocessError) as error:
+            return _fail("could not run %s: %s" % (" ".join(command), error))
+""".splitlines()
+)
+
+
+def test_the_vendored_adapter_is_the_claude_code_adapter_plus_the_output_bound():
+    """The rendering still exists once.
 
     `codex plugin add` copies one directory out of the repository into
     `$CODEX_HOME/plugins/cache/`, so this tree cannot import a shared module
     from a common parent — the same packaging constraint the Gemini CLI and
     Hermes Agent integrations document, now confirmed for a fourth host. A
-    pinned copy is the only reuse the packaging permits, and it is only reuse
-    while it stays byte-identical, which is what this asserts.
+    pinned copy is the only reuse the packaging permits.
+
+    That pin used to be byte equality. It is now "byte equality except for the
+    bounded analyzer read", because this is the copy Codex actually installs
+    and executes (`.agents/plugins/marketplace.json` points at
+    `./integrations/codex`; `codex_audit.py` runs the `audit_report.py` beside
+    it) and the unbounded read is a defect in *this* lane whether or not the
+    other three ever adopt the fix. Equality would have forced a change to
+    three host adapters this PR does not touch.
+
+    Asserting the copy is a superset is not enough on its own — deletions are
+    how rendering silently drifts — so every removed line is checked against
+    the one block that was deliberately replaced.
     """
-    assert VENDORED.read_bytes() == CANONICAL.read_bytes()
+    canonical = CANONICAL.read_text(encoding="utf-8").splitlines()
+    vendored = VENDORED.read_text(encoding="utf-8").splitlines()
+    removed = [
+        line[1:]
+        for line in difflib.unified_diff(canonical, vendored, lineterm="", n=0)
+        if line.startswith("-") and not line.startswith("---")
+    ]
+    assert removed, "no divergence at all should use byte equality instead"
+    unexpected = [line for line in removed if line not in _PERMITTED_DIVERGENCE]
+    assert unexpected == [], (
+        "the vendored adapter dropped lines the Codex output bound does not "
+        "explain: %r" % unexpected
+    )
+    # And the whole of the canonical rendering surface is still present.
+    for function in ("def _render(", "def _render_item(", "def _quote(", "def _code("):
+        assert function in "\n".join(vendored)
 
 
 def test_the_wrapper_does_not_reimplement_any_detection():
@@ -614,6 +668,98 @@ def test_kill_process_tree_never_looks_up_the_process_group(monkeypatch):
     assert wrapper._kill_process_tree(_Fake()) is True
 
 
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups are POSIX-only")
+def test_an_already_gone_process_group_counts_as_reached(monkeypatch):
+    """`ProcessLookupError` from `killpg` is the good case, not a failed kill.
+
+    ESRCH means there is no such process group, which means every member of it
+    — the adapter and the analyzer under it — has already exited. Treating that
+    like the permissions refusal it shares an `except` clause with made the
+    caller print "the analyzer may still be running — check your process list"
+    for a tree that provably was not running at all, which is the same false
+    statement `_kill_process_tree` exists to prevent, pointing the other way.
+
+    The direct kill must also not run: there is nothing left to signal, and on
+    a recycled PID it would be signalling something else entirely.
+    """
+    wrapper = _load_wrapper()
+    killed = []
+
+    class _Fake:
+        pid = 4242
+
+        def kill(self):
+            killed.append("direct")
+
+    def _no_such_group(pgid, sig):
+        raise ProcessLookupError("no such process group")
+
+    monkeypatch.setattr(wrapper.os, "killpg", _no_such_group)
+    assert wrapper._NEW_SESSION, "expected POSIX to take the process-group branch"
+    assert wrapper._kill_process_tree(_Fake()) is True
+    assert killed == []
+
+
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups are POSIX-only")
+def test_a_refused_process_group_signal_still_falls_back_and_admits_it(monkeypatch):
+    """The other half of the split, so `True` cannot be returned unconditionally.
+
+    A plain `OSError` — a permissions refusal — leaves the group possibly
+    alive, so the direct kill still runs and the answer is still False.
+    """
+    wrapper = _load_wrapper()
+    killed = []
+
+    class _Fake:
+        pid = 4242
+
+        def kill(self):
+            killed.append("direct")
+
+    def _refused(pgid, sig):
+        raise PermissionError("operation not permitted")
+
+    monkeypatch.setattr(wrapper.os, "killpg", _refused)
+    assert wrapper._kill_process_tree(_Fake()) is False
+    assert killed == ["direct"]
+
+
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups are POSIX-only")
+def test_a_tree_that_was_already_gone_is_not_reported_as_maybe_running(
+    capsys, tmp_path, monkeypatch
+):
+    """What the split above is actually for, said in the user's words.
+
+    `_kill_process_tree`'s return value has exactly one consumer: the sentence
+    the user and the model read after a timeout. This pins that sentence for
+    the already-exited case end to end, so the fix cannot be reverted in the
+    wrapper without a test that names the visible consequence failing.
+    """
+    wrapper = _load_wrapper()
+
+    class _Zombie:
+        args = ["fake"]
+        pid = 4242
+
+        def communicate(self, timeout=None):
+            raise wrapper.subprocess.TimeoutExpired(self.args, timeout)
+
+        def kill(self):
+            raise AssertionError("nothing should be left to kill directly")
+
+    def _no_such_group(pgid, sig):
+        raise ProcessLookupError("no such process group")
+
+    monkeypatch.setattr(wrapper.subprocess, "Popen", lambda argv, **kwargs: _Zombie())
+    monkeypatch.setattr(wrapper.os, "killpg", _no_such_group)
+    target = tmp_path / "prompt.md"
+    target.write_text(CONFLICTED, encoding="utf-8")
+    status, out = _run_with(wrapper, capsys, [str(target)])
+    assert status == 1
+    assert "was stopped" in out
+    assert "may still be running" not in out
+
+
 @pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
 def test_the_timeout_kills_the_analyzer_and_not_just_the_adapter(
     capsys, tmp_path, monkeypatch
@@ -679,6 +825,10 @@ def test_the_cap_applies_at_its_real_value(capsys):
     assert len(out) < wrapper.MAX_OUTPUT_CHARS + 500
 
 
+@pytest.mark.skipif(
+    not os.access("/bin/bash", os.X_OK),
+    reason="${PIPESTATUS[0]} needs an executable /bin/bash",
+)
 def test_a_closed_pipe_does_not_become_a_nonzero_exit(capsys, tmp_path):
     """`main` must survive the reader going away.
 
@@ -687,19 +837,29 @@ def test_a_closed_pipe_does_not_become_a_nonzero_exit(capsys, tmp_path):
     "Exception ignored while flushing sys.stdout" at shutdown, and the process
     exits 120 — a non-zero exit with no status line, which is precisely the
     signal SKILL.md defines as "the adapter never ran".
-    """
-    import subprocess as _subprocess
 
-    script = str(WRAPPER)
+    `${PIPESTATUS[0]}` is the assertion — it is the *wrapper's* exit status
+    rather than `head`'s — and it is a bashism, so this asks for bash by path
+    and skips where that path is not an executable file rather than failing as
+    if the wrapper had misbehaved. Every interpolated word is `shlex.quote`d:
+    `sys.executable` is a virtualenv path on the machine running the suite and
+    `tmp_path` is whatever pytest chose, and either containing a space would
+    otherwise split into two arguments — which the wrapper correctly refuses,
+    so the test would fail for a reason that has nothing to do with pipes.
+    """
     target = tmp_path / "prompt.md"
     target.write_text(CONFLICTED, encoding="utf-8")
-    completed = _subprocess.run(
+    completed = subprocess.run(
         '%s %s %s | head -c 40 > /dev/null; echo "exit=${PIPESTATUS[0]}"'
-        % (sys.executable, script, target),
+        % (
+            shlex.quote(sys.executable),
+            shlex.quote(str(WRAPPER)),
+            shlex.quote(str(target)),
+        ),
         shell=True,
         executable="/bin/bash",
-        stdout=_subprocess.PIPE,
-        stderr=_subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         timeout=180,
     )
@@ -963,3 +1123,300 @@ def test_the_readme_admits_the_ambient_catalog_cost():
     """
     text = _flat(README.read_text(encoding="utf-8"))
     assert "every turn" in text
+
+
+def test_the_readme_does_not_install_from_a_ref_it_says_has_no_index():
+    """The documented install command has to work on the day it is read.
+
+    `codex plugin marketplace add` git-clones and then looks for
+    `.agents/plugins/marketplace.json` at the clone root, which is why the
+    README explains that `main` does not have that file yet — and then told the
+    reader to pass `--ref main`, the one ref its own paragraph rules out. Both
+    places that document the pre-merge command are checked, because the root
+    README repeats it.
+
+    The constraint retires itself: once the prose stops claiming `main` has no
+    index — which is true the moment this merges — `--ref main` and the bare
+    form are correct again and this asserts nothing.
+    """
+    root_readme = ROOT / "README.md"
+    commands = [
+        line.strip()
+        for path in (README, root_readme)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("codex plugin marketplace add hermes-labs-ai/")
+    ]
+    assert len(commands) >= 2, "both READMEs should document the install command"
+
+    if "does not exist on `main` yet" not in _flat(README.read_text(encoding="utf-8")):
+        return  # merged: the default branch has the index, nothing to constrain
+
+    # `--ref main` is the one ref the prose rules out. The bare form is allowed
+    # to appear beside it as the post-merge example, which is why this checks
+    # the ref that is named rather than that a ref is always named.
+    assert all("--ref main" not in command for command in commands), commands
+    assert any("--ref " in command for command in commands), commands
+    # The local-clone workflow takes no ref and must stay that way.
+    assert "codex plugin marketplace add /path/to/rule-audit" in README.read_text(
+        encoding="utf-8"
+    )
+
+
+# ---------------------------------------------------------------------------
+# The analyzer's output is bounded while it runs, not after it finishes
+# ---------------------------------------------------------------------------
+
+
+#: An analyzer that never stops writing and never exits. It records its own PID
+#: so a test can prove it was killed rather than merely stopped being read, and
+#: it answers `--version` so `resolve_runtime`'s probe is not what is under
+#: test here.
+_FLOODING_ANALYZER = '''\
+import os, sys
+
+if "--version" in sys.argv:
+    sys.stdout.write("rule-audit 9.9.9\\n")
+    raise SystemExit(0)
+
+pid_path, stream = sys.argv[1], sys.argv[2]
+with open(pid_path, "w") as handle:
+    handle.write(str(os.getpid()))
+sink = sys.stdout.buffer if stream == "stdout" else sys.stderr.buffer
+block = b"x" * 4096
+while True:
+    sink.write(block)
+    sink.flush()
+'''
+
+#: A well-behaved analyzer: one small report on stdout, a little stderr noise,
+#: and the CLI's own HIGH/CRITICAL exit code.
+_QUIET_ANALYZER = '''\
+import sys
+
+if "--version" in sys.argv:
+    sys.stdout.write("rule-audit 9.9.9\\n")
+    raise SystemExit(0)
+
+sys.stderr.write("a warning that is not an error\\n")
+sys.stdout.write(open(sys.argv[1], encoding="utf-8").read())
+raise SystemExit(2)
+'''
+
+
+def _load_adapter():
+    """Load the adapter Codex actually installs and runs — the vendored copy."""
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("_ra_codex_bounded_adapter", VENDORED)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def _stub_runtime(monkeypatch, adapter, tmp_path, source, *arguments):
+    script = tmp_path / "analyzer_stub.py"
+    script.write_text(source, encoding="utf-8")
+    command = [sys.executable, str(script), *arguments]
+    monkeypatch.setattr(adapter, "resolve_runtime", lambda: (command, []))
+    return command
+
+
+def test_the_analyzer_output_caps_are_pinned_at_the_values_they_were_measured_at():
+    """Raising either without re-measuring is the regression.
+
+    Measured on this adapter's fixtures, every input inside the 64 KB cap it
+    already enforces: a 50 KB documentation file renders from 1.0 MB of JSON, a
+    16 KB file of dense imperative rules from 23 MB, and a 64 KB one — the
+    largest input accepted, and exactly the shape rule-audit is calibrated for
+    — from 318 MB, peaking at 1.8 GB resident to print the same 4 KB report.
+    The input cap is not an output cap, which is the whole point of this pair.
+    """
+    adapter = _load_adapter()
+    assert adapter.MAX_OUTPUT_BYTES == 32 * 1024 * 1024
+    assert adapter.MAX_STDERR_BYTES == 64 * 1024
+    assert adapter.MAX_OUTPUT_BYTES > adapter.MAX_INPUT_BYTES
+
+
+def test_the_reader_keeps_at_most_its_limit_however_much_arrives():
+    """The retained bytes are bounded by the limit, not by what the child sends.
+
+    This is the difference between a cap and a slice: `subprocess.run` would
+    have held all 1,000,000 bytes in this process before anything could look at
+    them. Reading it directly rather than through a pipe keeps the unit honest
+    about which of the two properties is being asserted.
+    """
+    adapter = _load_adapter()
+
+    class _Endless:
+        def __init__(self, total):
+            self.left = total
+
+        def read1(self, size):
+            take = min(size, self.left)
+            self.left -= take
+            return b"y" * take
+
+        read = read1
+
+        def close(self):
+            pass
+
+    reader = adapter._BoundedPipeReader(_Endless(1_000_000), 1_000)
+    reader.run()
+    assert len(reader.value()) == 1_000
+    assert reader.produced == 1_000_000
+    assert reader.overflowed is True
+
+    # Exactly at the limit is not over it: an off-by-one here refuses a report
+    # that fits.
+    exact = adapter._BoundedPipeReader(_Endless(1_000), 1_000)
+    exact.run()
+    assert exact.value() == b"y" * 1_000
+    assert exact.overflowed is False
+
+
+@pytest.mark.skipif(os.name != "posix", reason="the liveness check uses os.kill(pid, 0)")
+@pytest.mark.parametrize("stream", ("stdout", "stderr"))
+def test_an_analyzer_that_writes_past_the_cap_is_killed_while_it_runs(
+    tmp_path, monkeypatch, capsys, stream
+):
+    """The adversarial case, on both pipes.
+
+    The stub never exits and never stops writing. If the bound were applied to
+    a buffer that had already been collected — which is all `subprocess.run`
+    can do — this would return only when the analyzer's own 120 s timeout
+    expired, having bought megabyte after megabyte of it first. So the
+    assertions are: it comes back quickly, it says it *stopped* the analyzer
+    rather than that it timed out, the process is actually gone afterwards, and
+    the message that says so is itself short.
+
+    stderr is covered by the same parametrisation because the failure path is
+    where the unbounded buffer would otherwise reappear: refusing to hold an
+    enormous report and then holding an enormous explanation of the refusal is
+    the same defect.
+    """
+    adapter = _load_adapter()
+    monkeypatch.setattr(adapter, "MAX_OUTPUT_BYTES", 64 * 1024)
+    monkeypatch.setattr(adapter, "MAX_STDERR_BYTES", 64 * 1024)
+    pid_path = tmp_path / "analyzer.pid"
+    _stub_runtime(
+        monkeypatch, adapter, tmp_path, _FLOODING_ANALYZER, str(pid_path), stream
+    )
+    target = tmp_path / "prompt.md"
+    target.write_text(CONFLICTED, encoding="utf-8")
+
+    started = time.monotonic()
+    assert adapter.main([str(target)]) == 1
+    elapsed = time.monotonic() - started
+    assert elapsed < 30, "the cap was applied after the fact, not during the run"
+    assert adapter.ANALYZER_TIMEOUT_SECONDS > 60, "the timeout must stay the slow path"
+
+    error = capsys.readouterr().err
+    assert "was stopped" in error
+    assert "wrote more than 65536 bytes to %s" % stream in error
+    assert "timed out" not in error
+    # Actionable: the audit that was refused is still available un-truncated.
+    assert "rule-audit --file=" in error
+    # And bounded — one line, not a relayed flood.
+    assert len(error) < 1_000
+    assert error.count("\n") == 1
+
+    analyzer_pid = int(pid_path.read_text(encoding="utf-8"))
+    for _ in range(50):
+        try:
+            os.kill(analyzer_pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.1)
+    else:
+        os.kill(analyzer_pid, 9)
+        raise AssertionError(
+            "the analyzer %d survived the cap — the read stopped but the "
+            "process did not" % analyzer_pid
+        )
+
+
+def test_output_under_the_cap_is_parsed_and_rendered_exactly_as_before(
+    tmp_path, monkeypatch, capsys
+):
+    """The bound must be invisible to every audit that fits inside it.
+
+    A report under the cap still parses, still renders, and still carries the
+    CLI's exit code out unchanged — 2 for HIGH/CRITICAL, which the wrapper
+    turns into its status line. Stderr that stays under its own cap is not an
+    error either.
+    """
+    adapter = _load_adapter()
+    monkeypatch.setattr(adapter, "MAX_OUTPUT_BYTES", 64 * 1024)
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps(
+            {
+                "rule_count": 2,
+                "risk_label": "HIGH",
+                "risk_score": 71.0,
+                "contradictions": [
+                    {
+                        "conflict_type": "direct_negation",
+                        "severity": "high",
+                        "description": "two rules disagree",
+                        "rule_a_index": 0,
+                        "rule_a_text": "always answer",
+                        "rule_b_index": 1,
+                        "rule_b_text": "never answer",
+                    }
+                ],
+                "priority_ambiguities": [],
+                "meta_paradoxes": [],
+                "absoluteness_issues": [],
+                "gaps": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    _stub_runtime(monkeypatch, adapter, tmp_path, _QUIET_ANALYZER, str(report))
+    target = tmp_path / "prompt.md"
+    target.write_text(CONFLICTED, encoding="utf-8")
+
+    assert adapter.main([str(target)]) == 2
+    captured = capsys.readouterr()
+    assert "rule-audit 9.9.9 | 2 rules parsed | risk HIGH (71/100)" in captured.out
+    assert "## Contradictions (1)" in captured.out
+    assert "`always answer`" in captured.out
+    assert captured.err == ""
+
+
+def test_the_vendored_adapter_still_audits_a_stable_bounded_snapshot(
+    tmp_path, monkeypatch
+):
+    """The single-open snapshot race fix survives the bounded read.
+
+    `tests/test_claude_code_plugin.py` pins this against the canonical adapter
+    and its `subprocess.run`; this pins the same property against the copy
+    Codex installs, which now starts the analyzer through `Popen`. The snapshot
+    the analyzer is handed must still be a private copy taken from one open
+    file descriptor, so replacing the path between the size check and the audit
+    cannot change what was audited — and it must still be cleaned up when the
+    run fails.
+    """
+    adapter = _load_adapter()
+    target = tmp_path / "prompt.md"
+    original = b"You must always answer accurately.\n"
+    target.write_bytes(original)
+    captured = {}
+
+    monkeypatch.setattr(adapter, "resolve_runtime", lambda: (["rule-audit"], []))
+
+    def inspect_snapshot(command, **_kwargs):
+        file_option = next(part for part in command if part.startswith("--file="))
+        snapshot = Path(file_option.split("=", 1)[1])
+        captured["path"] = snapshot
+        assert snapshot != target
+        target.write_bytes(b"x" * (adapter.MAX_INPUT_BYTES + 1))
+        assert snapshot.read_bytes() == original
+        raise OSError("stop after inspecting the snapshot")
+
+    monkeypatch.setattr(adapter.subprocess, "Popen", inspect_snapshot)
+
+    assert adapter.main([str(target)]) == 1
+    assert not captured["path"].exists()

@@ -36,16 +36,22 @@ The repository is itself a Codex plugin marketplace, so installing is two
 commands:
 
 ```bash
-codex plugin marketplace add hermes-labs-ai/rule-audit --ref main
+codex plugin marketplace add hermes-labs-ai/rule-audit --ref feat/codex-plugin
 codex plugin add rule-audit@rule-audit
 ```
 
-**`--ref` is required until this lands on the default branch.** Measured, not
-inferred: `codex plugin marketplace add` runs a plain `git clone` with no
-`--branch`, so it gets the remote's default branch and then looks for
-`.agents/plugins/marketplace.json` at the clone root. That file does not exist
-on `main` yet, so without `--ref <this-branch>` the command fails with the
-manifest not found. Once merged, the bare form works.
+**`--ref` names this branch, not `main`, until this lands on the default
+branch.** Measured, not inferred: `codex plugin marketplace add` runs a plain
+`git clone` with no `--branch`, so it gets the remote's default branch and then
+looks for `.agents/plugins/marketplace.json` at the clone root. That file does
+not exist on `main` yet, which is exactly why `--ref main` cannot work before
+the merge: it would clone the one ref that has no marketplace index and fail
+with the manifest not found. Once this is on `main`, `--ref main` and the bare
+form both work:
+
+```bash
+codex plugin marketplace add hermes-labs-ai/rule-audit
+```
 
 To install from a local clone instead — which is also how you test a change:
 

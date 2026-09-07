@@ -201,6 +201,15 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
     stopped is the defect this whole function exists to prevent; doing it in
     the failure branch would be the same defect in a smaller place.
 
+    Which is why the two ways `killpg` can raise are not one case.
+    `ProcessLookupError` is ESRCH — *no such process group*, so every member of
+    it has already exited and nothing is left running; that is a reached tree,
+    not a failed kill, and it returns True. Any other `OSError` (a permissions
+    refusal, most plausibly) leaves the group possibly alive, so it falls
+    through to the direct kill and returns False. Collapsing them into one
+    `except` made the honest branch print "the analyzer may still be running"
+    for a tree that provably was not running at all.
+
     The final fallback kill is guarded for the same reason. `process.pid` can
     already be gone by the time execution reaches it — that is exactly the
     race the PGID fix above closes for the group, but `process.kill()` on the
@@ -218,11 +227,19 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
         try:
             os.killpg(process.pid, signal.SIGKILL)
             return True
-        except (OSError, ProcessLookupError):
-            # The whole group is already gone (nothing left to signal — the
-            # good case) or signalling it was refused. Either way, fall
-            # through to the direct kill on `process.pid` itself, which is
-            # still strictly better than doing nothing.
+        except ProcessLookupError:
+            # ESRCH: there is no such process group, which means every member
+            # of it — the adapter and the analyzer under it — has already
+            # exited. Nothing is still running, so this reached the tree in
+            # the only sense the caller asks about. Reporting False here would
+            # tell the user the analyzer "may still be running" precisely when
+            # it provably is not, which is the same false statement this
+            # function exists to prevent, in the opposite direction.
+            return True
+        except OSError:
+            # Signalling the group was refused (EPERM) or is otherwise
+            # unavailable. Fall through to the direct kill on `process.pid`
+            # itself, which is still strictly better than doing nothing.
             pass
     elif os.name == "nt":
         try:
@@ -238,10 +255,13 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
             pass
     try:
         process.kill()
-    except (OSError, ProcessLookupError):
-        # Already gone. Whatever was still alive when the mechanisms above
-        # ran either got signalled by them or was never reachable this way;
-        # there is nothing further this function can do.
+    except OSError:
+        # Already gone, or unreachable. `ProcessLookupError` is an `OSError`,
+        # so one clause covers both: whatever was still alive when the
+        # mechanisms above ran either got signalled by them or was never
+        # reachable this way, and there is nothing further this function can
+        # do. This branch is reached only when a mechanism above *failed*, so
+        # unlike the group case it cannot conclude the tree is gone.
         pass
     return False
 

@@ -161,9 +161,14 @@ A plugin adds the skill to [Codex](https://github.com/openai/codex). The
 repository is itself a Codex plugin marketplace:
 
 ```bash
-codex plugin marketplace add hermes-labs-ai/rule-audit --ref main
+codex plugin marketplace add hermes-labs-ai/rule-audit --ref feat/codex-plugin
 codex plugin add rule-audit@rule-audit
 ```
+
+`--ref` names the branch until this lands on `main`: the installer git-clones
+the default branch and looks for `.agents/plugins/marketplace.json` there, and
+that index does not exist on `main` yet. After the merge, `--ref main` and the
+bare form both work.
 
 ```
 > Audit prompts/support_agent.md with $rule-audit:audit
