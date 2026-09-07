@@ -103,7 +103,7 @@ rule_audit/
   evidence.py       # Result envelope emitter (python -m rule_audit.evidence); no detection logic
   py.typed          # PEP 561 type-hint marker
 
-tests/              # pytest — 174 tests, all pure Python
+tests/              # pytest — 216 tests, all pure Python
 samples/            # 5 real-world-style system prompts
 benchmarks/         # Expected finding counts per sample
 launch/             # Launch post drafts (do not ship to PyPI)
