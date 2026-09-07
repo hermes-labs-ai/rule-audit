@@ -15,7 +15,7 @@ already produced, with its source span attached.
     python -m rule_audit.evidence --file prompt.txt
     python -m rule_audit.evidence "You must always ... You must never ..."
 
-Added in v0.3.0 (unreleased).
+Added in v0.3.0.
 """
 
 from __future__ import annotations

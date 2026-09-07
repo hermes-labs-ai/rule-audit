@@ -4,7 +4,7 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.1] — 2026-09-07
 
 ### Fixed
 - The calibration corpus was not in the published 0.3.0 wheel: `rule_audit.calibration.DEFAULT_CASES_DIR` pointed at a repo-level `calibration/cases/` directory that no install has, so `python -m rule_audit.evidence --case negative_clean_prompt` exited 1 (`input.unknown-case`) from a PyPI install while passing from a source checkout. The cases now live in `rule_audit/calibration_cases/` as package data, and `tests/test_packaging.py` builds the distribution with `python -m build` and runs that command from the built wheel outside the checkout. Envelope `source` labels are unchanged.
@@ -100,7 +100,8 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.2...v0.1.3

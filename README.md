@@ -77,7 +77,7 @@ Audit prompt files before they are committed:
 ```yaml
 repos:
   - repo: https://github.com/hermes-labs-ai/rule-audit
-    rev: v0.3.0
+    rev: v0.3.1
     hooks:
       - id: rule-audit
 ```
