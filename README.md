@@ -77,7 +77,7 @@ Audit prompt files before they are committed:
 ```yaml
 repos:
   - repo: https://github.com/hermes-labs-ai/rule-audit
-    rev: v0.3.0
+    rev: v0.3.1
     hooks:
       - id: rule-audit
 ```
@@ -228,7 +228,7 @@ rule_audit/
 ├── analyzer.py      # Contradiction / gap / priority / meta / absoluteness detectors
 ├── edge_cases.py    # Scenario generator from analysis results
 ├── report.py        # AuditReport + Markdown / JSON renderers
-├── calibration.py   # Labeled calibration corpus runner (calibration/cases/*.json)
+├── calibration.py   # Labeled calibration corpus runner (calibration_cases/*.json, package data)
 ├── precommit.py     # Pre-commit hook entry point
 └── cli.py           # CLI entry point
 ```

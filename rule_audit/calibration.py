@@ -1,7 +1,8 @@
 """
 rule_audit/calibration.py
 
-Runs the bounded labeled calibration corpus in calibration/cases/*.json
+Runs the bounded labeled calibration corpus shipped as package data in
+rule_audit/calibration_cases/*.json
 against the live detectors and produces a machine-readable benchmark
 result: per-case pass/fail plus a corpus-level precision/recall summary.
 
@@ -33,7 +34,9 @@ from rule_audit.analyzer import Contradiction, MetaParadox
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CASES_DIR = Path(__file__).resolve().parent.parent / "calibration" / "cases"
+# Package-native so the corpus ships in the wheel (0.3.0 pointed at a
+# repo-level calibration/cases/ directory that a PyPI install never has).
+DEFAULT_CASES_DIR = Path(__file__).resolve().parent / "calibration_cases"
 
 
 @dataclass

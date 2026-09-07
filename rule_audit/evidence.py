@@ -15,7 +15,7 @@ already produced, with its source span attached.
     python -m rule_audit.evidence --file prompt.txt
     python -m rule_audit.evidence "You must always ... You must never ..."
 
-Added in v0.3.0 (unreleased).
+Added in v0.3.0.
 """
 
 from __future__ import annotations
@@ -254,7 +254,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     source.add_argument("prompt", nargs="?", help="System prompt text (inline).")
     source.add_argument("--file", "-f", metavar="PATH", help="Read the prompt from a file.")
     source.add_argument("--case", metavar="ID",
-                        help="Use a labeled calibration case from calibration/cases/.")
+                        help="Use a labeled calibration case from the corpus shipped with the package.")
     args = parser.parse_args(argv)
 
     if args.case:
