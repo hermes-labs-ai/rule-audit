@@ -88,8 +88,13 @@ send a turn, but "the model never picks this up unless you name it" would be
 false, so: it can, and it is meant to.
 
 To make the skill explicit-only, add `policy: {allow_implicit_invocation: false}`
-to the front matter of the installed `SKILL.md` — or just disable it and use it
-by mention. The `$` mention is the invocation that always works.
+to the front matter of the installed `SKILL.md`. Do not reach for "disable the
+skill instead" — a disabled skill is dropped from the mention resolver along
+with the implicit catalog (`core-skills/src/injection.rs:183`,
+`config_rules.rs:57-84`), so `$rule-audit:audit` would no longer resolve either.
+Disabling and the `$` mention are not substitutes for one another: disabling
+turns the skill off entirely, `allow_implicit_invocation: false` narrows it to
+mention-only.
 
 ## What you get
 
