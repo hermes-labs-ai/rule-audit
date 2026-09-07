@@ -117,7 +117,7 @@ to ship a command rather than an automatic edit-time hook.
 An extension adds the same command to Gemini CLI:
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/rule-audit
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
 ```
 
 ```
