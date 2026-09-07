@@ -163,8 +163,8 @@ def _status_line(status: int) -> str:
     return "[rule-audit status %d] %s" % (status, note)
 
 
-def _kill_process_tree(process: "subprocess.Popen[str]") -> None:
-    """Kill the adapter *and* the analyzer it started.
+def _kill_process_tree(process: "subprocess.Popen[str]") -> bool:
+    """Kill the adapter *and* the analyzer it started. True if the tree was reached.
 
     This is the whole reason `_run_adapter` uses `Popen` rather than
     `subprocess.run(timeout=...)`. `run` kills only the process it started, and
@@ -174,18 +174,41 @@ def _kill_process_tree(process: "subprocess.Popen[str]") -> None:
     still running, while this reports that the audit "was stopped". That is a
     false statement and a runaway process on the user's machine at once.
 
-    `start_new_session` puts the adapter in its own process group, so one
-    `killpg` reaches every descendant.
+    Two mechanisms, because there is no portable one. On POSIX,
+    `start_new_session` puts the adapter in its own process group and one
+    `killpg` reaches every descendant. On Windows there is no `setsid`, so this
+    shells out to `taskkill /T`, which walks the child tree by PID.
+
+    The return value is not decoration. Both mechanisms can fail — a race
+    against a process that has already exited, a permissions refusal, a
+    `taskkill` that is not on `PATH` — and the caller words the message it shows
+    the user differently when the analyzer may still be alive. Reporting
+    "stopped" for something that was not stopped is the defect this whole
+    function exists to prevent; doing it in the failure branch would be the same
+    defect in a smaller place.
     """
     if _NEW_SESSION and hasattr(os, "killpg"):
         try:
             os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            return
+            return True
         except (OSError, ProcessLookupError):
             # Already gone, or no permission — fall through to the direct kill,
             # which is still better than leaving the adapter alive.
             pass
+    elif os.name == "nt":
+        try:
+            completed = subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+            )
+            if completed.returncode == 0:
+                return True
+        except (OSError, subprocess.SubprocessError):
+            pass
     process.kill()
+    return False
 
 
 def _run_adapter(path: str) -> "subprocess.CompletedProcess[str]":
@@ -213,14 +236,17 @@ def _run_adapter(path: str) -> "subprocess.CompletedProcess[str]":
     )
     try:
         stdout, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        _kill_process_tree(process)
+    except subprocess.TimeoutExpired as expired:
+        reached_whole_tree = _kill_process_tree(process)
         # Drain after killing, or the pipes can keep this blocked on a child
         # that is already dead but whose buffers were never read.
         try:
             process.communicate(timeout=10)
         except (subprocess.TimeoutExpired, OSError, ValueError):  # pragma: no cover
             pass
+        # Carried on the exception rather than returned, because the caller
+        # reaches this through `except` and needs it to word its message.
+        expired.rule_audit_tree_killed = reached_whole_tree  # type: ignore[attr-defined]
         raise
     return subprocess.CompletedProcess(
         process.args, process.returncode, stdout=stdout, stderr=stderr
@@ -302,11 +328,19 @@ def run(argv: Optional[List[str]] = None) -> int:
 
     try:
         completed = _run_adapter(path)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as expired:
+        # Say "was stopped" only when it was. See `_kill_process_tree`.
+        if getattr(expired, "rule_audit_tree_killed", True):
+            outcome = "and was stopped, so your session stays responsive."
+        else:
+            outcome = (
+                "and was killed, but the analyzer it had started could not be stopped "
+                "with it and may still be running — check your process list."
+            )
         return _emit(
-            "rule-audit: the audit of %s did not finish within %ds and was stopped, so "
-            "your session stays responsive. Run `rule-audit --file` against it directly "
-            "to audit it without a time limit." % (path, TIMEOUT_SECONDS),
+            "rule-audit: the audit of %s did not finish within %ds %s Audit it without a "
+            "time limit by running the audit outside this session."
+            % (path, TIMEOUT_SECONDS, outcome),
             1,
         )
     except (OSError, ValueError, subprocess.SubprocessError) as error:

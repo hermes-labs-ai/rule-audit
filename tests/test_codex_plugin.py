@@ -471,6 +471,86 @@ def test_the_audit_is_time_bounded(capsys, tmp_path, monkeypatch):
     assert "did not finish within %ds" % wrapper.TIMEOUT_SECONDS in out
 
 
+def test_the_timeout_message_does_not_claim_a_kill_that_failed(
+    capsys, tmp_path, monkeypatch
+):
+    """Both kill mechanisms can fail, and on Windows there is no process group.
+
+    "was stopped" for something still running is the same defect the process
+    group exists to prevent, just in a smaller place — so the message is worded
+    from what actually happened, not from what was attempted.
+    """
+    wrapper = _load_wrapper()
+
+    class _Zombie:
+        args = ["fake"]
+        pid = -1
+
+        def communicate(self, timeout=None):
+            raise wrapper.subprocess.TimeoutExpired(self.args, timeout)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(wrapper.subprocess, "Popen", lambda argv, **kwargs: _Zombie())
+    monkeypatch.setattr(wrapper, "_kill_process_tree", lambda process: False)
+    target = tmp_path / "prompt.md"
+    target.write_text(CONFLICTED, encoding="utf-8")
+    status, out = _run_with(wrapper, capsys, [str(target)])
+    assert status == 1
+    assert "may still be running" in out
+    assert "was stopped" not in out
+
+
+def test_the_timeout_message_does_claim_a_kill_that_worked(capsys, tmp_path, monkeypatch):
+    """The other half of the pair, so the wording cannot be pinned to one branch."""
+    wrapper = _load_wrapper()
+
+    class _Zombie:
+        args = ["fake"]
+        pid = -1
+
+        def communicate(self, timeout=None):
+            raise wrapper.subprocess.TimeoutExpired(self.args, timeout)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(wrapper.subprocess, "Popen", lambda argv, **kwargs: _Zombie())
+    monkeypatch.setattr(wrapper, "_kill_process_tree", lambda process: True)
+    target = tmp_path / "prompt.md"
+    target.write_text(CONFLICTED, encoding="utf-8")
+    status, out = _run_with(wrapper, capsys, [str(target)])
+    assert status == 1
+    assert "was stopped" in out
+    assert "may still be running" not in out
+
+
+def test_kill_process_tree_reports_whether_it_reached_the_tree(monkeypatch):
+    """The return value is the message's only source of truth."""
+    wrapper = _load_wrapper()
+    killed = []
+
+    class _Fake:
+        pid = 4242
+
+        def kill(self):
+            killed.append("direct")
+
+    if wrapper._NEW_SESSION:
+        monkeypatch.setattr(wrapper.os, "getpgid", lambda pid: pid)
+        monkeypatch.setattr(wrapper.os, "killpg", lambda pgid, sig: None)
+        assert wrapper._kill_process_tree(_Fake()) is True
+        assert killed == []
+
+        def _boom(pgid, sig):
+            raise OSError("no such process group")
+
+        monkeypatch.setattr(wrapper.os, "killpg", _boom)
+        assert wrapper._kill_process_tree(_Fake()) is False
+        assert killed == ["direct"]
+
+
 @pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
 def test_the_timeout_kills_the_analyzer_and_not_just_the_adapter(
     capsys, tmp_path, monkeypatch
