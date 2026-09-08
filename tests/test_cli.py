@@ -49,7 +49,7 @@ def test_cli_version_matches_package_version(capsys) -> None:
 
     assert exit_info.value.code == 0
     assert capsys.readouterr().out.strip() == f"rule-audit {__version__}"
-    assert __version__ == "0.3.1"
+    assert __version__ == "0.4.0"
 
 
 def test_json_output_is_byte_stable_across_hash_seeds(tmp_path):
