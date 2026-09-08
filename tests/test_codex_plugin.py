@@ -1147,12 +1147,16 @@ def test_the_readmes_document_the_install_that_works_today():
     # Matched rather than read line-first, because the changelog spells the
     # command inline in a prose sentence and the READMEs put it in a fence.
     pattern = re.compile(r"codex plugin marketplace add hermes-labs-ai/rule-audit[^\n`]*")
-    commands = [
-        match.strip()
+    found = {
+        path: [match.strip() for match in pattern.findall(path.read_text(encoding="utf-8"))]
         for path in (README, root_readme, changelog)
-        for match in pattern.findall(path.read_text(encoding="utf-8"))
-    ]
-    assert len(commands) >= 2, "both READMEs should document the install command"
+    }
+    # Both READMEs have to carry it. The changelog is checked if it mentions
+    # the command and is not required to — it is a history, not an install doc.
+    assert found[README], "the plugin README should document the install command"
+    assert found[root_readme], "the root README should document the install command"
+
+    commands = [command for matches in found.values() for command in matches]
     assert all(
         command == "codex plugin marketplace add hermes-labs-ai/rule-audit"
         for command in commands
