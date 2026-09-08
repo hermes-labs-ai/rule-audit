@@ -4,7 +4,7 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] — 2026-09-08
 
 ### Added
 - Native Claude Code plugin under `integrations/claude-code/`, providing the `/rule-audit:audit <file>` slash command. It shells out to `rule-audit --file=PATH --format json`, renders a size-bounded report (5 findings per family, 160 characters per quoted span, true totals always stated), and re-raises the CLI's exit code unchanged. Adds no detection logic and no runtime dependency; `rule-audit` itself is a prerequisite the command resolves and version-checks (`>=0.3.1`), with `RULE_AUDIT_PYTHON` to point at a project virtualenv. Inputs above 64 KB are refused with a pointer to the CLI, since the contradiction pass is O(n²) in parsed rules and the library caps nothing itself. Prompt text and the audited path are rendered as inline code with a backtick fence longer than any run inside them, the analyzer's own descriptions have their inline Markdown and HTML delimiters escaped (several interpolate `rule.text[:80]` verbatim), and control characters are collapsed, so neither a file's contents nor its filename can restructure a report the model is asked to act on. Covered by 29 cases in `tests/test_claude_code_plugin.py`.
@@ -23,6 +23,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The Hermes Agent plugin ships **no** `on_session_start` or `post_tool_call` hook, for the same measured reason as below. A session-start hook would fire on roughly two of every three real prompt files, ~44% of the time with nothing behind it, and hardest on the shortest files because of the coverage-gap floor.
 - The Gemini CLI extension ships **no** `AfterTool` hook, for the same measured reason as below. The precision finding is a property of the analyzer's scoring, not of any host.
 - The plugin deliberately ships **no** `PostToolUse` hook. On 588 real files matching this project's own prompt-file pattern, 72% of distinct files (86% of all files) score HIGH or CRITICAL, and ~44% of those verdicts contain zero contradictions — they are the 40/100 coverage-gap floor, which an empty file also trips. Narrower gates did not help: all 18 `meta_paradox` findings across the same corpus were false positives on the token "ignore"/"forget". An unsolicited edit-time interrupt would assert a precision `README.md` already disclaims. Rationale and measurements are recorded in `integrations/claude-code/README.md`.
+
+### Why 0.4.0, not 0.3.2
+Four new host plugins (`integrations/claude-code/`, `integrations/gemini-cli/`, `integrations/hermes-agent/`, `integrations/codex/`), plus the marketplace index and root-level `gemini-extension.json`/`commands/`, are new public, additive surface — no existing detection, CLI, or library behavior changed except the rule-index-0 citation fix. Per the same rule applied to 0.2.0 and 0.3.0, new surface is a MINOR bump, not a patch.
 
 ## [0.3.1] — 2026-09-07
 
@@ -120,7 +123,8 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.1.3...v0.2.0

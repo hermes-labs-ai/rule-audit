@@ -9,8 +9,8 @@ authors:
     orcid: "https://orcid.org/0009-0005-4896-1112"
     affiliation: "Hermes Labs"
     email: "roli@hermes-labs.ai"
-version: "0.3.1"
-date-released: "2026-09-07"
+version: "0.4.0"
+date-released: "2026-09-08"
 license: MIT
 repository-code: "https://github.com/hermes-labs-ai/rule-audit"
 url: "https://hermes-labs.ai"
