@@ -1137,17 +1137,20 @@ def test_the_readmes_document_the_install_that_works_today():
     was correct then and installs a stale copy of the plugin now. The index is
     on `main`, so the bare form is the install.
 
-    Both places are checked, because the root README repeats the command, and
-    the assertion is unconditional on purpose: guarding it on the pre-merge
-    prose would let that whole paragraph come back — the exact regression this
-    pins — and take the check down with it.
+    Every place that spells the command is checked — both READMEs and the
+    changelog entry, which repeat it — and the assertion is unconditional on
+    purpose: guarding it on the pre-merge prose would let that whole paragraph
+    come back, the exact regression this pins, and take the check down with it.
     """
     root_readme = ROOT / "README.md"
+    changelog = ROOT / "CHANGELOG.md"
+    # Matched rather than read line-first, because the changelog spells the
+    # command inline in a prose sentence and the READMEs put it in a fence.
+    pattern = re.compile(r"codex plugin marketplace add hermes-labs-ai/rule-audit[^\n`]*")
     commands = [
-        line.strip()
-        for path in (README, root_readme)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip().startswith("codex plugin marketplace add hermes-labs-ai/")
+        match.strip()
+        for path in (README, root_readme, changelog)
+        for match in pattern.findall(path.read_text(encoding="utf-8"))
     ]
     assert len(commands) >= 2, "both READMEs should document the install command"
     assert all(
