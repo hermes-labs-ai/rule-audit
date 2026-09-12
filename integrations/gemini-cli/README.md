@@ -58,8 +58,10 @@ file…`.
 installs from the newest *release*, and it tracks the one marked Latest for
 updates. v0.4.0 is the first release that contains `gemini-extension.json`, so
 the bare form works. Releases up to 0.3.1 predate the manifest; installing one
-fails with `Configuration file not found at …/gemini-extension.json`. Passing
-`--ref` clones the ref instead of using a release.
+fails with `Configuration file not found at …/gemini-extension.json`. A `--ref`
+that names a release tag (`--ref v0.4.0`) downloads that release; a branch
+`--ref` with no matching release (`--ref main`) clones it with Git and does not
+track releases.
 
 `gemini extensions link` is **not** supported for this extension. A linked
 extension runs from your development directory, but a command template cannot
