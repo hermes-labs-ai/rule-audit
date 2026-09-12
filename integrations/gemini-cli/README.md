@@ -37,8 +37,11 @@ The report names the version it actually used.
 ## Install
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit
 ```
+
+That installs the newest GitHub release. `--ref` is optional: pass `--ref main`
+for the development head, or `--ref v0.4.0` to pin a tag.
 
 Or from a local clone:
 
@@ -51,11 +54,12 @@ Both copy the repository to `~/.gemini/extensions/rule-audit/`. Restart Gemini
 CLI, then `/help` lists the command as `[rule-audit] Audit an AI system prompt
 file…`.
 
-**`--ref` is required until a release ships this extension.** Given a bare
-GitHub URL, Gemini CLI installs from the newest *release*, and releases up to
-0.3.1 predate `gemini-extension.json`; the install fails with `Configuration
-file not found at …/gemini-extension.json`. Passing `--ref` makes it clone the
-ref instead. Once a release contains the manifest, the bare form works.
+**Do not pin a release older than v0.4.0.** Given a bare GitHub URL, Gemini CLI
+installs from the newest *release*, and it tracks the one marked Latest for
+updates. v0.4.0 is the first release that contains `gemini-extension.json`, so
+the bare form works. Releases up to 0.3.1 predate the manifest; installing one
+fails with `Configuration file not found at …/gemini-extension.json`. Passing
+`--ref` clones the ref instead of using a release.
 
 `gemini extensions link` is **not** supported for this extension. A linked
 extension runs from your development directory, but a command template cannot
