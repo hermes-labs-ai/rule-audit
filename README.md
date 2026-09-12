@@ -94,11 +94,15 @@ The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conv
 ### Claude Code
 
 A native plugin adds one slash command, so you can audit a prompt file without
-leaving the session:
+leaving the session. The repository is itself a Claude Code plugin marketplace:
 
 ```bash
-claude --plugin-dir ./integrations/claude-code
+claude plugin marketplace add hermes-labs-ai/rule-audit
+claude plugin install rule-audit@rule-audit
 ```
+
+To try it from a checkout without installing, run
+`claude --plugin-dir ./integrations/claude-code`.
 
 ```
 /rule-audit:audit prompts/support_agent.md

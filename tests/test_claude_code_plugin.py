@@ -81,6 +81,26 @@ def test_manifest_is_valid_and_names_the_plugin() -> None:
     assert manifest["author"]["name"]
 
 
+def test_repository_root_is_a_marketplace_that_lists_this_plugin() -> None:
+    # `claude plugin marketplace add hermes-labs-ai/rule-audit` reads
+    # `.claude-plugin/marketplace.json` at the clone root; `rule-audit@rule-audit`
+    # in the README is `<plugin name>@<marketplace name>`.
+    index = json.loads(
+        (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
+    assert index["name"] == "rule-audit"
+    entries = [p for p in index["plugins"] if p["name"] == "rule-audit"]
+    assert len(entries) == 1
+    source = entries[0]["source"]
+    assert source.startswith("./") and ".." not in source
+    assert (ROOT / source).resolve() == PLUGIN.resolve()
+    for doc in (ROOT / "README.md", PLUGIN / "README.md"):
+        text = doc.read_text(encoding="utf-8")
+        assert "claude plugin marketplace add hermes-labs-ai/rule-audit" in text
+        assert "rule-audit@rule-audit" in text
+        assert "<marketplace-name>" not in text
+
+
 def test_components_live_at_the_plugin_root_not_inside_claude_plugin() -> None:
     # Claude Code only discovers commands/ and hooks/ at the plugin root.
     assert COMMAND.is_file()

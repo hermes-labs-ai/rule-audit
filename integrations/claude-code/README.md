@@ -38,18 +38,21 @@ rather than silently auditing with a different analyzer.
 
 ## Install
 
-Try it from a checkout of this repository:
+The repository is itself a Claude Code plugin marketplace, indexed by
+[`.claude-plugin/marketplace.json`](../../.claude-plugin/marketplace.json):
+
+```bash
+claude plugin marketplace add hermes-labs-ai/rule-audit
+claude plugin install rule-audit@rule-audit
+# or, interactively
+/plugin marketplace add hermes-labs-ai/rule-audit
+/plugin install rule-audit@rule-audit
+```
+
+Or try it from a checkout of this repository without installing anything:
 
 ```bash
 claude --plugin-dir ./integrations/claude-code
-```
-
-Or install it for real, once this plugin is listed in a marketplace you have added:
-
-```bash
-claude plugin install rule-audit@<marketplace-name>
-# or, interactively
-/plugin install rule-audit@<marketplace-name>
 ```
 
 Verify the plugin against your installed Claude Code:
@@ -79,9 +82,9 @@ Exit codes are `rule-audit`'s own, unchanged:
 
 | Goal | Command |
 |---|---|
-| Turn it off, keep it installed | `/plugin disable rule-audit@<marketplace-name>` |
-| Turn it back on | `/plugin enable rule-audit@<marketplace-name>` |
-| Remove it | `/plugin uninstall rule-audit@<marketplace-name>` or `claude plugin uninstall rule-audit@<marketplace-name>` |
+| Turn it off, keep it installed | `/plugin disable rule-audit@rule-audit` |
+| Turn it back on | `/plugin enable rule-audit@rule-audit` |
+| Remove it | `/plugin uninstall rule-audit@rule-audit` or `claude plugin uninstall rule-audit@rule-audit` |
 | Remove a `--plugin-dir` copy | Stop passing `--plugin-dir`; nothing persists |
 | Remove it from a project | Drop the entry from `enabledPlugins` in `.claude/settings.json` |
 
