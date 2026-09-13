@@ -52,7 +52,7 @@ Cluster membership is used to determine if two rules are "about the same topic".
 - Contradiction detection is O(n²) in rules — fine for real prompts (n < 100)
 - No support for multi-document prompts (operator + user + tool results)
 
-## Backlog (don't start unless asked)
+## Backlog (out of scope: start only when asked)
 - Rule diffing between prompt versions
 - LLM-augmented semantic contradiction detection (optional plugin)
 - GitHub Action for CI integration

@@ -87,7 +87,7 @@ Rules that share any cluster are considered "about the same topic" for contradic
 
 ### Adjust severity
 
-See `SPEC.md` §4 for calibration. Change risk weights in `AnalysisResult.risk_score` (`analyzer.py`) — update the thresholds in `AuditReport.risk_label` (`report.py`) if needed.
+See `SPEC.md` §4 for calibration. Change risk weights in `AnalysisResult.risk_score` (`analyzer.py`) — update the thresholds in `AuditReport.risk_label` (`report.py`) when a weight change moves a sample prompt across a label boundary.
 
 ## Project structure
 

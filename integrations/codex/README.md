@@ -185,12 +185,15 @@ The plugin writes no state of its own anywhere, and running it writes no
 `__pycache__` into its install directory — the adapter is executed as a
 subprocess script rather than imported, so Python caches nothing.
 
-One caveat for the local-clone install path: `codex plugin add` copies the
-source directory *verbatim*, so if your clone already contains a `__pycache__/`
-under `skills/rule-audit/scripts/` — which running this repository's test suite
-creates — that directory is copied in too. It is inert, and `codex plugin
-remove` deletes it with everything else. A Git-sourced install never has one,
-because `__pycache__` is gitignored.
+What gets copied: the plugin is the repository root, so the install cache holds
+the whole repository tree, not just `plugin.json` and `skills/`. From a local
+clone, `codex plugin add` copies the directory *verbatim* — measured with
+codex-cli 0.153.4, the cache held the clone's `.git`, and its gitignored
+`.pytest_cache/`, `.ruff_cache/` and `rule_audit.egg-info/` too (about 3 MB).
+Untracked and ignored files in that clone are copied with it, so install from a
+clean clone, and never from one holding local secrets. Only `skills/rule-audit/`
+is loaded as a skill; the rest is inert, and `codex plugin remove` deletes all
+of it.
 
 ## How it is put together
 
