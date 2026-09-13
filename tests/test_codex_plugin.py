@@ -1,7 +1,7 @@
 """Contract tests for the native Codex plugin.
 
 These cover what the *host* imposes and what this integration promises: the
-`.codex-plugin/plugin.json` manifest and marketplace index Codex's installer
+portable root `plugin.json` manifest and marketplace index Codex's installer
 reads, the skill name the two of them compose to, the guarantees the wrapper
 makes unconditionally because a model — not a template — writes the command,
 and the containment the dual display path (the model's context *and* the TUI
@@ -30,14 +30,16 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGIN = ROOT / "integrations" / "codex"
-MANIFEST = PLUGIN / ".codex-plugin" / "plugin.json"
-SKILL_DIR = PLUGIN / "skills" / "audit"
+#: The installable plugin is the repository root: the portable `plugin.json`
+#: and the one canonical skill under `skills/rule-audit/`.
+PLUGIN = ROOT
+MANIFEST = ROOT / "plugin.json"
+SKILL_DIR = ROOT / "skills" / "rule-audit"
 SKILL = SKILL_DIR / "SKILL.md"
 WRAPPER = SKILL_DIR / "scripts" / "codex_audit.py"
 VENDORED = SKILL_DIR / "scripts" / "audit_report.py"
 CANONICAL = ROOT / "integrations" / "claude-code" / "scripts" / "audit_report.py"
-README = PLUGIN / "README.md"
+README = ROOT / "integrations" / "codex" / "README.md"
 MARKETPLACE = ROOT / ".agents" / "plugins" / "marketplace.json"
 
 pytestmark = pytest.mark.skipif(
@@ -179,8 +181,8 @@ def test_the_vendored_adapter_is_the_claude_code_adapter_plus_the_output_bound()
 
     That pin used to be byte equality. It is now "byte equality except for the
     bounded analyzer read", because this is the copy Codex actually installs
-    and executes (`.agents/plugins/marketplace.json` points at
-    `./integrations/codex`; `codex_audit.py` runs the `audit_report.py` beside
+    and executes (`.agents/plugins/marketplace.json` points at the repository
+    root, `./`; `skills/rule-audit/scripts/codex_audit.py` runs the `audit_report.py` beside
     it) and the unbounded read is a defect in *this* lane whether or not the
     other three ever adopt the fix. Equality would have forced a change to
     three host adapters this PR does not touch.
@@ -234,26 +236,21 @@ def test_manifest_declares_the_name_every_documented_command_uses():
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     # The manifest name is the plugin half of the `plugin@marketplace` selector
     # and the namespace prefix on every skill the plugin contributes. Both
-    # READMEs spell `rule-audit@rule-audit` and `$rule-audit:audit`.
+    # READMEs spell `rule-audit@rule-audit` and `$rule-audit:rule-audit`.
     assert data["name"] == "rule-audit"
     assert data["version"]
     assert data["description"]
 
 
-def test_manifest_skills_path_is_one_codex_will_accept():
-    """`codex-rs/core-plugins/src/manifest.rs` drops a skills path that is not
-    relative with a `./` prefix, or that contains `..`, or that escapes the
-    plugin root — silently, with only a `tracing::warn!`. A dropped path means
-    the plugin installs and contributes nothing.
+def test_manifest_uses_the_default_skills_directory():
+    """The portable manifest names no `skills` path: Codex loads `skills/` at
+    the plugin root by default, and an explicit path is not part of the Agent
+    Plugins 1.0.0 manifest. The root has to carry that directory itself.
     """
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    skills = data["skills"]
-    assert isinstance(skills, str)
-    assert skills.startswith("./")
-    assert ".." not in skills
-    resolved = (PLUGIN / skills.lstrip("./")).resolve()
-    assert resolved == (PLUGIN / "skills").resolve()
-    assert resolved.is_dir()
+    assert "skills" not in data
+    assert (PLUGIN / "skills").is_dir()
+    assert SKILL_DIR.parent == PLUGIN / "skills"
 
 
 def test_the_marketplace_index_is_where_codex_looks_for_it():
@@ -285,13 +282,13 @@ def test_the_marketplace_index_points_at_this_plugin():
 def test_the_manifest_and_index_agree_on_the_installed_skill_name():
     """Codex namespaces a plugin's skills as `<plugin name>:<skill dir name>`.
 
-    Everything the user is told to type — `$rule-audit:audit`, and the
+    Everything the user is told to type — `$rule-audit:rule-audit`, and the
     `[[skills.config]] name` in the documented off-switch — is that composed
     string. It is composed from three files that can drift independently.
     """
     plugin_name = json.loads(MANIFEST.read_text(encoding="utf-8"))["name"]
     composed = "%s:%s" % (plugin_name, SKILL_DIR.name)
-    assert composed == "rule-audit:audit"
+    assert composed == "rule-audit:rule-audit"
     assert composed in README.read_text(encoding="utf-8")
 
 
@@ -1105,7 +1102,7 @@ def test_the_readme_documents_the_whole_lifecycle():
     # The off-switch that keeps the plugin installed but stops it costing a
     # catalog line on every turn.
     assert "[[skills.config]]" in text
-    assert 'name = "rule-audit:audit"' in text
+    assert 'name = "rule-audit:rule-audit"' in text
 
 
 def test_the_readme_states_the_prerequisite_and_the_minimum_version():

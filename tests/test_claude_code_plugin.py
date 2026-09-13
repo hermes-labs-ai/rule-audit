@@ -22,7 +22,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "integrations" / "claude-code"
-MANIFEST = PLUGIN / ".claude-plugin" / "plugin.json"
+#: The installable plugin is the repository root; its manifest adds this
+#: integration's command by path (see `tests/test_cross_agent_install.py`).
+MANIFEST = ROOT / ".claude-plugin" / "plugin.json"
 COMMAND = PLUGIN / "commands" / "audit.md"
 SCRIPT = PLUGIN / "scripts" / "audit_report.py"
 
@@ -93,7 +95,7 @@ def test_repository_root_is_a_marketplace_that_lists_this_plugin() -> None:
     assert len(entries) == 1
     source = entries[0]["source"]
     assert source.startswith("./") and ".." not in source
-    assert (ROOT / source).resolve() == PLUGIN.resolve()
+    assert (ROOT / source).resolve() == ROOT.resolve()
     for doc in (ROOT / "README.md", PLUGIN / "README.md"):
         text = doc.read_text(encoding="utf-8")
         assert "claude plugin marketplace add hermes-labs-ai/rule-audit" in text
@@ -115,7 +117,7 @@ def test_command_declares_frontmatter_and_invokes_the_adapter() -> None:
     assert "allowed-tools:" in frontmatter
     # ${CLAUDE_PLUGIN_ROOT} is the only path that survives installation; a
     # relative path would resolve against the user's cwd instead.
-    assert "${CLAUDE_PLUGIN_ROOT}/scripts/audit_report.py" in text
+    assert "${CLAUDE_PLUGIN_ROOT}/integrations/claude-code/scripts/audit_report.py" in text
     # Exit 2 is a finding. If the command body stops saying so, the model will
     # report a successful audit as a broken command.
     assert "not a command failure" in text
@@ -453,7 +455,7 @@ def test_command_passes_the_path_as_one_quoted_argument_after_a_terminator() -> 
     # would be read as an option. Single quotes plus `--` close both.
     line = _documented_invocation()
     assert re.fullmatch(
-        r'python3 "\$\{CLAUDE_PLUGIN_ROOT\}/scripts/audit_report\.py" -- \'<path>\'',
+        r'python3 "\$\{CLAUDE_PLUGIN_ROOT\}/integrations/claude-code/scripts/audit_report\.py" -- \'<path>\'',
         line,
     ), line
     text = COMMAND.read_text(encoding="utf-8")
@@ -489,7 +491,7 @@ def test_documented_invocation_is_inert_against_a_hostile_path_through_a_real_sh
     result = subprocess.run(
         ["/bin/sh", "-c", command],
         cwd=str(tmp_path),
-        env={**os.environ, "CLAUDE_PLUGIN_ROOT": str(PLUGIN), "PYTHONPATH": str(ROOT)},
+        env={**os.environ, "CLAUDE_PLUGIN_ROOT": str(ROOT), "PYTHONPATH": str(ROOT)},
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

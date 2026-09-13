@@ -91,6 +91,32 @@ pre-commit run rule-audit --all-files
 
 The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conventional system, developer, and agent prompt/instruction filenames. It reports every matched file and preserves the CLI exit codes above. Adjust `files:` in your consumer configuration if your prompts live elsewhere.
 
+### Agent plugin: Claude Code, Codex, Gemini CLI
+
+The repository root is one portable [Agent Plugin](https://agent-plugins.org)
+(`plugin.json`, Agent Plugins 1.0.0) that ships one skill,
+[`skills/rule-audit/SKILL.md`](skills/rule-audit/SKILL.md). Each host installs
+it with its own native command; none of them gets a separate copy of the skill.
+
+| Host | Install | Read back |
+| --- | --- | --- |
+| Claude Code | `claude plugin marketplace add hermes-labs-ai/rule-audit`<br>`claude plugin install rule-audit@rule-audit` | `claude plugin list` |
+| OpenAI Codex CLI | `codex plugin marketplace add hermes-labs-ai/rule-audit`<br>`codex plugin add rule-audit@rule-audit` | `codex plugin list` |
+| Gemini CLI | `gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main` | `gemini skills list` |
+
+What each host reads:
+
+- Claude Code reads `.claude-plugin/marketplace.json` (source `./`, the root)
+  and `.claude-plugin/plugin.json`.
+- Codex reads the repo marketplace `.agents/plugins/marketplace.json` (source
+  `./`, the root) and the portable `plugin.json`.
+- Gemini CLI reads `gemini-extension.json` and discovers the skill under
+  `skills/`. Keep `--ref main`: without a ref, Gemini CLI installs the latest
+  GitHub release archive, and releases up to v0.4.0 predate `skills/`.
+
+The skill runs the bundled adapter next to it against an installed
+`rule-audit`, or, if none is installed, under `uvx --from rule-audit==0.4.0`.
+
 ### Claude Code
 
 A native plugin adds one slash command, so you can audit a prompt file without
@@ -101,8 +127,7 @@ claude plugin marketplace add hermes-labs-ai/rule-audit
 claude plugin install rule-audit@rule-audit
 ```
 
-To try it from a checkout without installing, run
-`claude --plugin-dir ./integrations/claude-code`.
+To try it from a checkout without installing, run `claude --plugin-dir .`.
 
 ```
 /rule-audit:audit prompts/support_agent.md
@@ -121,7 +146,7 @@ to ship a command rather than an automatic edit-time hook.
 An extension adds the same command to Gemini CLI:
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/rule-audit
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
 ```
 
 ```
@@ -174,7 +199,7 @@ The installer git-clones the default branch and looks for
 form needs no `--ref`.
 
 ```
-> Audit prompts/support_agent.md with $rule-audit:audit
+> Audit prompts/support_agent.md with $rule-audit:rule-audit
 ```
 
 Type `$` or `/skills` to pick the skill — either way it is inserted into the

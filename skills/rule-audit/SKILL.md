@@ -1,6 +1,6 @@
 ---
-name: audit
-description: Audit a named AI system-prompt file for contradictions, coverage gaps, priority ambiguities, meta-paradoxes and absoluteness issues, using the local rule-audit static analyzer (offline, deterministic, no network, no model call). Use when the user asks to audit, lint, review or check a system prompt, agent instruction file or persona file for internal conflicts, and names the file. Do not use for general code review, for prose documentation, or when no specific prompt file has been named.
+name: rule-audit
+description: Audit a named AI system-prompt file for contradictions, coverage gaps, priority ambiguities, meta-paradoxes and absoluteness issues, using the local rule-audit static analyzer (offline, deterministic, no model call). Use when the user asks to audit, lint, review or check a system prompt, agent instruction file or persona file for internal conflicts, and names the file. Do not use for general code review, for prose documentation, or when no specific prompt file has been named.
 metadata:
   short-description: Audit a system prompt for contradictions and coverage gaps
 ---
@@ -10,7 +10,7 @@ metadata:
 `rule-audit` is a static analyzer for AI system prompts — sentence splitting,
 modal-verb regexes and hand-curated keyword clusters. It runs locally, makes no
 network calls, calls no model, and is deterministic. Think `bandit` or `semgrep`,
-but for prompts.
+but for prompts (https://github.com/hermes-labs-ai/rule-audit).
 
 ## What to do
 
@@ -23,17 +23,19 @@ but for prompts.
      one, audit it as asked, then say plainly that the result is unreliable for
      that kind of document — see "Scope" below.
 
-2. **Run the bundled adapter, once.** It lives next to this file. Take the
-   directory from the `<path>` shown with this skill, and run:
+2. **Run the bundled adapter, once.** It lives next to this file, in
+   `scripts/`. Take the directory this `SKILL.md` was loaded from — Codex shows
+   it as the `<path>` given with this skill, Claude Code as the skill's base
+   directory, Gemini CLI as the skill's location — and run:
 
    ```bash
    python3 "<that directory>/scripts/codex_audit.py" "<the file to audit>"
    ```
 
    For example, if this skill was loaded from
-   `/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.1.0/skills/audit/SKILL.md`,
+   `/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.4.0/skills/rule-audit/SKILL.md`,
    the command is
-   `python3 "/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.1.0/skills/audit/scripts/codex_audit.py" "prompts/support_agent.md"`.
+   `python3 "/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.4.0/skills/rule-audit/scripts/codex_audit.py" "prompts/support_agent.md"`.
 
    Quote both paths. Pass exactly one file. Do not add flags — there are none.
    Do not call `rule-audit` directly instead: the adapter is what bounds the
@@ -50,7 +52,7 @@ but for prompts.
      command failure.** Do not retry, and do not report the command as broken.
    - `[rule-audit status 1]` — the audit did not run (file missing, file too
      large, no suitable `rule-audit` installed). The message says what to do;
-     relay it.
+     relay it, or see "If `rule-audit` is not installed" below.
    - **No status line at all** means the result is incomplete: either the
      adapter never ran, or a downstream pipe closed after receiving only the
      report prefix. Do not infer that it never ran solely from the missing
@@ -106,7 +108,20 @@ and say so.
 
 ## If `rule-audit` is not installed
 
-The adapter reports it with status 1 and names the fix:
-`pipx install 'rule-audit>=0.3.1'`, or set `RULE_AUDIT_PYTHON` to a Python that
-has it. It is pure standard library, with no dependencies and no network calls.
-Relay that to the user rather than installing anything yourself.
+The adapter reports it with status 1 and names the fix. Do not install anything
+persistently yourself. Pick a runner:
+
+- If `rule-audit --version` works, or `RULE_AUDIT_PYTHON` points at a Python
+  that has it, the command in step 2 already uses it.
+- Otherwise, if `uvx` is available, run the same adapter once under the exact
+  pinned release from PyPI, with no install and no PATH change:
+
+  ```bash
+  uvx --from rule-audit==0.4.0 python3 "<that directory>/scripts/codex_audit.py" "<the file to audit>"
+  ```
+
+  Keep the `==0.4.0` pin so it never fetches an unreviewed newer release. This
+  downloads the pure-standard-library package into uv's cache; the audit itself
+  still makes no network calls.
+- Otherwise relay the adapter's message: `pipx install rule-audit==0.4.0`, or set
+  `RULE_AUDIT_PYTHON` to a Python that has it.

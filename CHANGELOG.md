@@ -4,6 +4,11 @@ All notable changes to `rule-audit` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- The repository root is now one portable Agent Plugin (`plugin.json`, Agent Plugins 1.0.0) with one canonical skill, `skills/rule-audit/SKILL.md`. `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json` both point at the root, and Gemini CLI discovers the same skill through `gemini-extension.json`; no host carries its own copy. The Codex skill moved from `integrations/codex/skills/audit/` (so `$rule-audit:audit` is now `$rule-audit:rule-audit`), the Claude Code manifest moved to `.claude-plugin/plugin.json` and adds `/rule-audit:audit` by path, and `CLAUDE.md` moved to `.claude/CLAUDE.md` so `claude plugin validate --strict` passes on the root. The skill falls back to `uvx --from rule-audit==0.4.0` when no `rule-audit` is installed. Plugin and marketplace names are unchanged; no runtime code changed.
+
 ## [0.4.0] — 2026-09-08
 
 ### Added

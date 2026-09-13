@@ -11,8 +11,8 @@
   "plugins": [
     {
       "name": "rule-audit",
-      "source": "./integrations/claude-code",
-      "description": "On-demand static analysis of AI system prompts: run rule-audit on a prompt file from inside Claude Code and get a bounded report of contradictions, coverage gaps, priority ambiguities and meta-paradoxes.",
+      "source": "./",
+      "description": "On-demand static analysis of AI system prompts: audit a prompt file for contradictions, coverage gaps, priority ambiguities and meta-paradoxes, locally and offline.",
       "homepage": "https://github.com/hermes-labs-ai/rule-audit",
       "license": "MIT",
       "category": "development"

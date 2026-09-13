@@ -1,12 +1,12 @@
 # rule-audit for Codex
 
-A Codex plugin that contributes one skill, `$rule-audit:audit`, for auditing a
+A Codex plugin that contributes one skill, `$rule-audit:rule-audit`, for auditing a
 named AI system-prompt file with the [`rule-audit`](https://github.com/hermes-labs-ai/rule-audit)
 static analyzer — locally, offline, deterministically, and only inside a turn
 you send.
 
 ```
-> Audit prompts/support_agent.md with $rule-audit:audit
+> Audit prompts/support_agent.md with $rule-audit:rule-audit
 ```
 
 Codex runs the bundled adapter locally, shows you the command and its output in
@@ -56,7 +56,8 @@ codex plugin add rule-audit@rule-audit
 
 `codex plugin list` shows what a marketplace offers before you install anything.
 
-Installing copies `integrations/codex/` to
+The plugin is the repository root (the portable `plugin.json` and
+`skills/rule-audit/`). Installing copies it to
 `$CODEX_HOME/plugins/cache/rule-audit/rule-audit/<version>/` and enables the
 plugin. Start a new Codex session to pick it up.
 
@@ -66,11 +67,11 @@ repository, which you add yourself and can remove.
 
 ## Use
 
-Type `$` in the composer and pick `rule-audit:audit`, or type the mention
+Type `$` in the composer and pick `rule-audit:rule-audit`, or type the mention
 directly, and name the file in the same message:
 
 ```
-> Audit prompts/support_agent.md with $rule-audit:audit
+> Audit prompts/support_agent.md with $rule-audit:rule-audit
 ```
 
 `/skills` opens the same picker. Either way, selecting the skill inserts the
@@ -91,7 +92,7 @@ To make the skill explicit-only, add `policy: {allow_implicit_invocation: false}
 to the front matter of the installed `SKILL.md`. Do not reach for "disable the
 skill instead" — a disabled skill is dropped from the mention resolver along
 with the implicit catalog (`core-skills/src/injection.rs:183`,
-`config_rules.rs:57-84`), so `$rule-audit:audit` would no longer resolve either.
+`config_rules.rs:57-84`), so `$rule-audit:rule-audit` would no longer resolve either.
 Disabling and the `$` mention are not substitutes for one another: disabling
 turns the skill off entirely, `allow_implicit_invocation: false` narrows it to
 mention-only.
@@ -154,7 +155,7 @@ Stop the skill contributing anything, without uninstalling — add to
 
 ```toml
 [[skills.config]]
-name = "rule-audit:audit"
+name = "rule-audit:rule-audit"
 enabled = false
 ```
 
@@ -186,7 +187,7 @@ subprocess script rather than imported, so Python caches nothing.
 
 One caveat for the local-clone install path: `codex plugin add` copies the
 source directory *verbatim*, so if your clone already contains a `__pycache__/`
-under `skills/audit/scripts/` — which running this repository's test suite
+under `skills/rule-audit/scripts/` — which running this repository's test suite
 creates — that directory is copied in too. It is inert, and `codex plugin
 remove` deletes it with everything else. A Git-sourced install never has one,
 because `__pycache__` is gitignored.
@@ -194,9 +195,9 @@ because `__pycache__` is gitignored.
 ## How it is put together
 
 ```
-integrations/codex/
-├── .codex-plugin/plugin.json          # the manifest Codex's installer reads
-└── skills/audit/
+plugin.json                            # the portable manifest Codex's installer reads
+.agents/plugins/marketplace.json       # the marketplace; its entry is the root, ./
+└── skills/rule-audit/                 # the one skill Claude Code and Gemini CLI load too
     ├── SKILL.md                       # what the model is told, and the caveats
     └── scripts/
         ├── codex_audit.py             # the host-specific wrapper
