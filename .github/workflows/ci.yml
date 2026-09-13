@@ -155,17 +155,20 @@ jobs:
                   unexpected_errors += 1
                   continue
 
+              if any(count < 0 for count in numeric_counts.values()):
+                  unexpected_errors += 1
+                  continue
+
               for key, count in numeric_counts.items():
-                  if count < 0:
-                      unexpected_errors += 1
-                      break
                   totals[key] += count
-              else:
-                  risk_labels[risk_label] += 1
+              risk_labels[risk_label] += 1
 
           status = "completed" if unexpected_errors == 0 else "completed with errors"
           product = "rule-audit"
-          version = importlib.metadata.version(product)
+          try:
+              version = importlib.metadata.version(product)
+          except importlib.metadata.PackageNotFoundError:
+              version = "unavailable"
           summary_lines = [
               "## rule-audit sample audit",
               "",
