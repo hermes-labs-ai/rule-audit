@@ -22,7 +22,7 @@ Part of the Hermes Labs reliability stack:
 
 ## Start here
 
-1. Read `CLAUDE.md` — project conventions, adding detectors, adding clusters.
+1. Read `.claude/CLAUDE.md` — project conventions, adding detectors, adding clusters.
 2. Read `SPEC.md` — data model, detector algorithms, severity calibration.
 3. Read `ROADMAP.md` — what's in v0.1.0, what's planned for v0.2+.
 4. Read `benchmarks/README.md` — expected finding counts per sample prompt.
@@ -87,7 +87,7 @@ Rules that share any cluster are considered "about the same topic" for contradic
 
 ### Adjust severity
 
-See `SPEC.md` §4 for calibration. Change risk weights in `AnalysisResult.risk_score` (`analyzer.py`) — update the thresholds in `AuditReport.risk_label` (`report.py`) if needed.
+See `SPEC.md` §4 for calibration. Change risk weights in `AnalysisResult.risk_score` (`analyzer.py`) — update the thresholds in `AuditReport.risk_label` (`report.py`) when a weight change moves a sample prompt across a label boundary.
 
 ## Project structure
 

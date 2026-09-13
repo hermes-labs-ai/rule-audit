@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Codex host adapter for the `$rule-audit:audit` skill.
+"""Codex host adapter for the `$rule-audit:rule-audit` skill.
 
 Everything about *what* is reported lives in `audit_report.py`, which is a
 byte-for-byte copy of the Claude Code plugin's adapter

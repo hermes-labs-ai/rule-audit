@@ -37,11 +37,13 @@ The report names the version it actually used.
 ## Install
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/rule-audit
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
 ```
 
-That installs the newest GitHub release. `--ref` is optional: pass `--ref main`
-for the development head, or `--ref v0.4.0` to pin a tag.
+`--ref main` installs the development head, which also carries the
+`skills/rule-audit` Agent Skill (`gemini skills list` shows it). Without a ref
+Gemini CLI installs the newest GitHub release, and releases up to v0.4.0 have
+the command but predate `skills/`.
 
 Or from a local clone:
 

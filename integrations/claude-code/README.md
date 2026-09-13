@@ -52,13 +52,17 @@ claude plugin install rule-audit@rule-audit
 Or try it from a checkout of this repository without installing anything:
 
 ```bash
-claude --plugin-dir ./integrations/claude-code
+claude --plugin-dir .
 ```
 
-Verify the plugin against your installed Claude Code:
+The plugin is the repository root: `.claude-plugin/plugin.json` there adds this
+command (`commands` points at `integrations/claude-code/commands/audit.md`) and
+the shared `skills/rule-audit` skill. Verify it against your installed Claude
+Code:
 
 ```bash
-claude plugin validate --strict ./integrations/claude-code
+claude plugin validate .claude-plugin/plugin.json --strict
+claude plugin validate .claude-plugin/marketplace.json --strict
 ```
 
 ## Use
@@ -189,8 +193,8 @@ Verified against Claude Code 2.1.261 on macOS:
 ## Files
 
 ```
+.claude-plugin/plugin.json       # manifest, at the repository root
 integrations/claude-code/
-├── .claude-plugin/plugin.json   # manifest
 ├── commands/audit.md            # /rule-audit:audit
 ├── scripts/audit_report.py      # bounded adapter over the rule-audit CLI
 └── README.md

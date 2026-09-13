@@ -23,7 +23,7 @@ Target: **$ARGUMENTS**
    inside the single quotes:
 
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/audit_report.py" -- '<path>'
+   python3 "${CLAUDE_PLUGIN_ROOT}/integrations/claude-code/scripts/audit_report.py" -- '<path>'
    ```
 
    The path is user input and goes through a shell. Keep it as one
