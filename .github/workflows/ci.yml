@@ -58,6 +58,10 @@ jobs:
   audit-samples:
     name: Audit sample prompts
     runs-on: ubuntu-latest
+    env:
+      # Callers can disable the bounded job summary without changing the
+      # audit or benchmark commands below.
+      RULE_AUDIT_SUMMARY: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -79,6 +83,142 @@ jobs:
             python -m rule_audit --file "$f" --format summary || true
             echo ""
           done
+
+      - name: Publish bounded sample audit summary
+        if: always()
+        run: |
+          if [ "${RULE_AUDIT_SUMMARY:-false}" != "true" ]; then
+            echo "Sample audit job summary disabled."
+            exit 0
+          fi
+
+          python - <<'PY'
+          import importlib.metadata
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          sample_paths = sorted(Path("samples").glob("*.txt"))
+          labels = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+          totals = {
+              "rules": 0,
+              "contradictions": 0,
+              "gaps": 0,
+              "priority_ambiguities": 0,
+              "meta_paradoxes": 0,
+              "absoluteness_issues": 0,
+              "edge_cases": 0,
+          }
+          risk_labels = {label: 0 for label in sorted(labels)}
+          expected_statuses = 0
+          unexpected_errors = 0
+
+          for sample_path in sample_paths:
+              completed = subprocess.run(
+                  [
+                      "python",
+                      "-m",
+                      "rule_audit",
+                      "--file",
+                      str(sample_path),
+                      "--format",
+                      "json",
+                  ],
+                  capture_output=True,
+                  text=True,
+                  check=False,
+              )
+              # Exit 2 is the documented HIGH/CRITICAL result; only 0 and 2
+              # count as expected audit statuses. Never expose captured output.
+              if completed.returncode in (0, 2):
+                  expected_statuses += 1
+              else:
+                  unexpected_errors += 1
+                  continue
+
+              try:
+                  report = json.loads(completed.stdout)
+                  summary = report["summary"]
+                  risk_label = report["risk_label"]
+                  if risk_label not in labels:
+                      raise ValueError("unrecognized risk label")
+                  numeric_counts = {
+                      "rules": int(report["rule_count"]),
+                      **{
+                          key: int(summary[key])
+                          for key in totals
+                          if key != "rules"
+                      },
+                  }
+              except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                  unexpected_errors += 1
+                  continue
+
+              for key, count in numeric_counts.items():
+                  if count < 0:
+                      unexpected_errors += 1
+                      break
+                  totals[key] += count
+              else:
+                  risk_labels[risk_label] += 1
+
+          status = "completed" if unexpected_errors == 0 else "completed with errors"
+          product = "rule-audit"
+          version = importlib.metadata.version(product)
+          summary_lines = [
+              "## rule-audit sample audit",
+              "",
+              f"- **Product:** `{product}`",
+              f"- **Version:** `{version}`",
+              f"- **Status:** `{status}` ({len(sample_paths)} samples; {expected_statuses} expected results; {unexpected_errors} errors)",
+              "",
+              "### Aggregate counts",
+              "",
+              "| Metric | Count |",
+              "| --- | ---: |",
+          ]
+          summary_lines.extend(
+              f"| {label} | {totals[key]} |"
+              for key, label in (
+                  ("rules", "Rules parsed"),
+                  ("contradictions", "Contradictions"),
+                  ("gaps", "Coverage gaps"),
+                  ("priority_ambiguities", "Priority ambiguities"),
+                  ("meta_paradoxes", "Meta-paradoxes"),
+                  ("absoluteness_issues", "Absoluteness issues"),
+                  ("edge_cases", "Edge case scenarios"),
+              )
+          )
+          summary_lines.extend(
+              [
+                  "",
+                  "### Risk labels",
+                  "",
+                  "| Label | Samples |",
+                  "| --- | ---: |",
+              ]
+          )
+          summary_lines.extend(
+              f"| {label} | {risk_labels[label]} |"
+              for label in ("LOW", "MEDIUM", "HIGH", "CRITICAL")
+          )
+          summary_lines.extend(
+              [
+                  "",
+                  "> Risk scores are lexical indicators; they are not verified exploits and do not constitute safety certification.",
+                  "",
+                  "Source: [rule-audit repository](https://github.com/hermes-labs-ai/rule-audit)",
+              ]
+          )
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              Path(summary_path).write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+          else:
+              # GitHub always supplies this path; keep local runs observable.
+              print("\n".join(summary_lines))
+          PY
 
       - name: Run benchmark tests
         run: |
