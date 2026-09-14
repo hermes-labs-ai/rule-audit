@@ -2,6 +2,11 @@
 
 **rule-audit is a static analyzer for AI system prompts: it parses a prompt into normative rules and reports logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absolute-rule edge cases — without calling an LLM.**
 
+It runs as a pre-commit hook that audits agent rules and prompts — the AI
+system prompts and agent instructions (`CLAUDE.md`, `AGENTS.md`, `SOUL.md`)
+that steer a coding agent — before they're committed. See
+[Pre-commit](#pre-commit) below.
+
 [![CI](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/rule-audit.svg)](https://pypi.org/project/rule-audit/)
 [![Python](https://img.shields.io/pypi/pyversions/rule-audit.svg)](https://pypi.org/project/rule-audit/)
