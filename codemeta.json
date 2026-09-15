@@ -1,0 +1,17 @@
+{
+  "@context": "https://w3id.org/codemeta/3.1",
+  "@type": "SoftwareSourceCode",
+  "name": "rule-audit",
+  "description": "Static analyzer for AI system prompts that detects logical contradictions, coverage gaps, priority ambiguities, and absolute-rule edge cases without LLM calls or network access.",
+  "codeRepository": "https://github.com/hermes-labs-ai/rule-audit",
+  "version": "0.4.0",
+  "license": "https://spdx.org/licenses/MIT",
+  "programmingLanguage": "Python",
+  "runtimePlatform": "Python >=3.9",
+  "identifier": [
+    "https://pypi.org/project/rule-audit/0.4.0/"
+  ],
+  "author": [{"@type": "Person", "givenName": "Rolando", "familyName": "Bosch Rodriguez", "identifier": "https://orcid.org/0009-0005-4896-1112"}],
+  "url": "https://pypi.org/project/rule-audit/0.4.0/",
+  "keywords": ["AI reliability", "LLM reliability", "silent failure modes", "behavioral evaluation", "system-prompt audit", "static analysis", "quality gate"]
+}
