@@ -22,8 +22,8 @@ timeout_seconds = 4.0
 blocking_threshold = "MEDIUM"
 
 [review]
-provider = "hermes-pr-review"
-argv = ["hermes-pr-review"]
+provider = "coderabbit"
+argv = ["coderabbit", "review", "--agent", "--base", "main"]
 timeout_seconds = 180.0
 material_severities = ["critical", "major"]
 material_categories = ["correctness", "security", "data-loss", "concurrency", "api-contract"]
