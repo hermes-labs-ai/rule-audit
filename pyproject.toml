@@ -16,12 +16,13 @@ maintainers = [
 ]
 keywords = [
     "ai-safety", "llm", "prompt-engineering", "security", "audit",
-    "contradiction-detection", "red-teaming"
+    "contradiction-detection", "red-teaming", "system-prompt", "static-analysis"
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -29,6 +30,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.9"
 dependencies = []
@@ -40,6 +43,7 @@ Repository = "https://github.com/hermes-labs-ai/rule-audit"
 Issues = "https://github.com/hermes-labs-ai/rule-audit/issues"
 Documentation = "https://github.com/hermes-labs-ai/rule-audit#readme"
 Changelog = "https://github.com/hermes-labs-ai/rule-audit/blob/main/CHANGELOG.md"
+Source = "https://github.com/hermes-labs-ai/rule-audit"
 
 [project.scripts]
 rule-audit = "rule_audit.cli:main"
