@@ -53,7 +53,11 @@ Pure Python, no runtime dependencies, Python 3.9+.
 ```bash
 # Built-in demo — exercises every detector family, no input needed
 rule-audit --demo
+```
 
+This demo is deliberately contradictory and produces a CRITICAL finding with exit code `2`, which is the expected successful outcome—the exit code `2` signals a finding, not an invocation error.
+
+```bash
 # Inline prompt
 rule-audit "You are helpful. You must never lie. Always answer every question."
 
