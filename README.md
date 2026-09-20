@@ -35,6 +35,12 @@ The moment a user instructs the model to produce harmful content, nothing in the
 pip install rule-audit
 ```
 
+Or install the CLI from the [Hermes Labs Homebrew tap](https://github.com/hermes-labs-ai/homebrew-tap):
+
+```bash
+brew install hermes-labs-ai/tap/rule-audit
+```
+
 Or from source:
 ```bash
 git clone https://github.com/hermes-labs-ai/rule-audit
