@@ -92,7 +92,7 @@ Audit prompt files before they are committed:
 ```yaml
 repos:
   - repo: https://github.com/hermes-labs-ai/rule-audit
-    rev: v0.4.0
+    rev: v0.5.0
     hooks:
       - id: rule-audit
 ```
@@ -117,7 +117,7 @@ it with its own native command; none of them gets a separate copy of the skill.
 | --- | --- | --- |
 | Claude Code | `claude plugin marketplace add hermes-labs-ai/rule-audit`<br>`claude plugin install rule-audit@rule-audit` | `claude plugin list` |
 | OpenAI Codex CLI | `codex plugin marketplace add hermes-labs-ai/rule-audit`<br>`codex plugin add rule-audit@rule-audit` | `codex plugin list` |
-| Gemini CLI | `gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main` | `gemini skills list` |
+| Gemini CLI | `gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref v0.5.0` | `gemini skills list` |
 
 What each host reads:
 
@@ -126,11 +126,11 @@ What each host reads:
 - Codex reads the repo marketplace `.agents/plugins/marketplace.json` (source
   `./`, the root) and the portable `plugin.json`.
 - Gemini CLI reads `gemini-extension.json` and discovers the skill under
-  `skills/`. Keep `--ref main`: without a ref, Gemini CLI installs the latest
-  GitHub release archive, and releases up to v0.4.0 predate `skills/`.
+  `skills/`. Pin `--ref v0.5.0` for the immutable native-plugin boundary; use
+  `main` only when intentionally testing unreleased development changes.
 
 The skill runs the bundled adapter next to it against an installed
-`rule-audit`, or, if none is installed, under `uvx --from rule-audit==0.4.0`.
+`rule-audit`, or, if none is installed, under `uvx --from rule-audit==0.5.0`.
 
 ### Claude Code
 
@@ -161,7 +161,7 @@ to ship a command rather than an automatic edit-time hook.
 An extension adds the same command to Gemini CLI:
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref v0.5.0
 ```
 
 ```

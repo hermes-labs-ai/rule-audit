@@ -154,7 +154,7 @@ def test_manifest_is_valid_and_names_the_extension() -> None:
     # checks; a missing name or version fails the install outright
     # (`extension-manager.js`: "missing \"name\"").
     assert manifest["name"] == "rule-audit"
-    assert manifest["version"]
+    assert manifest["version"] == "0.5.0"
     assert manifest["description"]
     # `validateName` in extension-manager.js: letters, numbers and dashes only.
     assert re.fullmatch(r"[a-zA-Z0-9-]+", manifest["name"])

@@ -17,11 +17,12 @@ always-on context cost. See [Why there is no hook](#why-there-is-no-hook).
 
 ## Prerequisite
 
-The extension ships no analyzer. It resolves an installed `rule-audit` and
-refuses to guess:
+The extension ships no analyzer. Its adapter remains compatible with
+`rule-audit` 0.3.1 or newer, while this native-plugin/package release is
+documented against the immutable `0.5.0` runtime:
 
 ```bash
-pipx install 'rule-audit>=0.3.1'
+pipx install 'rule-audit==0.5.0'
 ```
 
 `rule-audit` is pure standard library — no dependencies, no network calls.
@@ -37,13 +38,14 @@ The report names the version it actually used.
 ## Install
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main
+gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref v0.5.0
 ```
 
-`--ref main` installs the development head, which also carries the
-`skills/rule-audit` Agent Skill (`gemini skills list` shows it). Without a ref
-Gemini CLI installs the newest GitHub release, and releases up to v0.4.0 have
-the command but predate `skills/`.
+`--ref v0.5.0` pins the immutable native-plugin release, which carries the
+`skills/rule-audit` Agent Skill (`gemini skills list` shows it). Use `--ref
+main` only when intentionally testing unreleased development changes. Without
+a ref Gemini CLI follows the repository's latest release archive, so the
+installed command and skill are not bound to this release boundary.
 
 Or from a local clone:
 
@@ -56,14 +58,11 @@ Both copy the repository to `~/.gemini/extensions/rule-audit/`. Restart Gemini
 CLI, then `/help` lists the command as `[rule-audit] Audit an AI system prompt
 file…`.
 
-**Do not pin a release older than v0.4.0.** Given a bare GitHub URL, Gemini CLI
+**Pin `v0.5.0` for reproducible installs.** Given a bare GitHub URL, Gemini CLI
 installs from the newest *release*, and it tracks the one marked Latest for
-updates. v0.4.0 is the first release that contains `gemini-extension.json`, so
-the bare form works. Releases up to 0.3.1 predate the manifest; installing one
-fails with `Configuration file not found at …/gemini-extension.json`. A `--ref`
-that names a release tag (`--ref v0.4.0`) downloads that release; a branch
-`--ref` with no matching release (`--ref main`) clones it with Git and does not
-track releases.
+updates. A `--ref` that names a release tag (`--ref v0.5.0`) downloads that
+immutable release; a branch `--ref` such as `--ref main` clones development
+head and is intentionally not a release boundary.
 
 `gemini extensions link` is **not** supported for this extension. A linked
 extension runs from your development directory, but a command template cannot

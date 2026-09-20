@@ -19,10 +19,12 @@ Validated against Codex CLI **0.145.0**.
 
 ## Prerequisite
 
-`rule-audit` itself, on your `PATH`:
+`rule-audit` itself, on your `PATH`. The adapter remains compatible with 0.3.1
+or newer, while this native-plugin/package release is documented against the
+immutable `0.5.0` runtime:
 
 ```bash
-pipx install 'rule-audit>=0.3.1'
+pipx install 'rule-audit==0.5.0'
 ```
 
 It is pure standard library — no dependencies, no network calls. Alternatively

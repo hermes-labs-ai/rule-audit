@@ -23,6 +23,7 @@ CLAUDE_MANIFEST = ROOT / ".claude-plugin" / "plugin.json"
 CLAUDE_MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 CODEX_MARKETPLACE = ROOT / ".agents" / "plugins" / "marketplace.json"
 GEMINI_MANIFEST = ROOT / "gemini-extension.json"
+HERMES_MANIFEST = ROOT / "integrations" / "hermes-agent" / "plugin.yaml"
 CANONICAL_SKILL = ROOT / "skills" / "rule-audit" / "SKILL.md"
 SCHEMA_ID = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 NAME_PATTERN = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
@@ -67,6 +68,9 @@ def test_every_manifest_names_the_same_plugin_and_version():
         manifest = _json(path)
         assert manifest["name"] == portable["name"], path
         assert manifest["version"] == portable["version"], path
+    hermes = HERMES_MANIFEST.read_text(encoding="utf-8")
+    assert re.search(r"^name: rule-audit$", hermes, re.MULTILINE)
+    assert re.search(r"^version: 0\.5\.0$", hermes, re.MULTILINE)
 
 
 def test_both_marketplaces_resolve_to_the_repository_root():
@@ -113,18 +117,18 @@ def test_claude_manifest_adds_the_existing_command_by_path():
 
 def test_the_skill_pins_the_uvx_fallback():
     text = CANONICAL_SKILL.read_text(encoding="utf-8")
-    assert "uvx --from rule-audit==0.4.0" in text
+    assert "uvx --from rule-audit==0.5.0" in text
     assert re.search(r"uvx --from rule-audit(?!==)", text) is None
 
 
-def test_documented_gemini_install_pins_a_ref():
-    """An unpinned GitHub install takes the latest release, which predates `skills/`."""
+def test_documented_gemini_install_pins_the_native_release_ref():
+    """Gemini installs must name the immutable native-plugin release."""
     pattern = re.compile(r"gemini extensions install https://github\.com/hermes-labs-ai/rule-audit[^\n`]*")
     for doc in (ROOT / "README.md", ROOT / "integrations" / "gemini-cli" / "README.md"):
         commands = pattern.findall(doc.read_text(encoding="utf-8"))
         assert commands, "%s no longer documents the Gemini install" % doc.name
         for command in commands:
-            assert "--ref main" in command, "%s: %r must pass --ref main" % (doc.name, command)
+            assert "--ref v0.5.0" in command, "%s: %r must pass --ref v0.5.0" % (doc.name, command)
 
 
 def test_readme_documents_every_host_install():
@@ -134,6 +138,6 @@ def test_readme_documents_every_host_install():
         "claude plugin install rule-audit@rule-audit",
         "codex plugin marketplace add hermes-labs-ai/rule-audit",
         "codex plugin add rule-audit@rule-audit",
-        "gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref main",
+        "gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref v0.5.0",
     ):
         assert command in text

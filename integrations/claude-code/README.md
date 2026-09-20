@@ -17,10 +17,12 @@ is the most important section of this file.
 
 ## Prerequisites
 
-`rule-audit` 0.3.1 or newer must be importable or on `PATH`:
+The adapter remains compatible with `rule-audit` 0.3.1 or newer, while this
+native-plugin/package release is documented against the immutable `0.5.0`
+runtime:
 
 ```bash
-pipx install 'rule-audit>=0.3.1'
+pipx install 'rule-audit==0.5.0'
 ```
 
 It is pure Python stdlib — no dependencies, no network calls.

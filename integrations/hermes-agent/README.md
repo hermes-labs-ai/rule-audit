@@ -20,11 +20,12 @@ Validated against **Hermes Agent 0.21.0**.
 
 ## Install
 
-Requires `rule-audit` 0.3.1 or newer on the machine. It is pure stdlib — no
-dependencies, no network:
+The adapter remains compatible with `rule-audit` 0.3.1 or newer, while this
+native-plugin/package release is documented against the immutable `0.5.0`
+runtime. It is pure stdlib — no dependencies, no network:
 
 ```bash
-pipx install 'rule-audit>=0.3.1'
+pipx install 'rule-audit==0.5.0'
 ```
 
 If the `rule-audit` on your `PATH` is older than 0.3.1, point the plugin at an

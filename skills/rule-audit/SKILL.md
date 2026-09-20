@@ -33,9 +33,9 @@ but for prompts (https://github.com/hermes-labs-ai/rule-audit).
    ```
 
    For example, if this skill was loaded from
-   `/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.4.0/skills/rule-audit/SKILL.md`,
+   `/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.5.0/skills/rule-audit/SKILL.md`,
    the command is
-   `python3 "/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.4.0/skills/rule-audit/scripts/codex_audit.py" "prompts/support_agent.md"`.
+   `python3 "/Users/me/.codex/plugins/cache/rule-audit/rule-audit/0.5.0/skills/rule-audit/scripts/codex_audit.py" "prompts/support_agent.md"`.
 
    Quote both paths. Pass exactly one file. Do not add flags — there are none.
    Do not call `rule-audit` directly instead: the adapter is what bounds the
@@ -117,11 +117,11 @@ persistently yourself. Pick a runner:
   pinned release from PyPI, with no install and no PATH change:
 
   ```bash
-  uvx --from rule-audit==0.4.0 python3 "<that directory>/scripts/codex_audit.py" "<the file to audit>"
+  uvx --from rule-audit==0.5.0 python3 "<that directory>/scripts/codex_audit.py" "<the file to audit>"
   ```
 
-  Keep the `==0.4.0` pin so it never fetches an unreviewed newer release. This
+  Keep the `==0.5.0` pin so it never fetches an unreviewed newer release. This
   downloads the pure-standard-library package into uv's cache; the audit itself
   still makes no network calls.
-- Otherwise relay the adapter's message: `pipx install rule-audit==0.4.0`, or set
+- Otherwise relay the adapter's message: `pipx install rule-audit==0.5.0`, or set
   `RULE_AUDIT_PYTHON` to a Python that has it.

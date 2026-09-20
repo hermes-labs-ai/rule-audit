@@ -1109,9 +1109,9 @@ def test_the_readme_states_the_prerequisite_and_the_minimum_version():
     adapter_source = VENDORED.read_text(encoding="utf-8")
     minimum = re.search(r"MIN_VERSION = \((\d+), (\d+), (\d+)\)", adapter_source)
     assert minimum is not None
-    version = ".".join(minimum.groups())
+    assert minimum.groups() == ("0", "3", "1")
     text = README.read_text(encoding="utf-8")
-    assert "pipx install 'rule-audit>=%s'" % version in text
+    assert "pipx install 'rule-audit==0.5.0'" in text
     assert "RULE_AUDIT_PYTHON" in text
 
 

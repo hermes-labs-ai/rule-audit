@@ -3,7 +3,7 @@
   "name": "rule-audit",
   "displayName": "rule-audit",
   "description": "On-demand static analysis of AI system prompts: audit a prompt file for contradictions, coverage gaps, priority ambiguities and meta-paradoxes, locally and offline.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": {
     "name": "Hermes Labs",
     "email": "roli@hermes-labs.ai",

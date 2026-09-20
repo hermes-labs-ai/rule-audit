@@ -6,8 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-19
+
 ### Changed
-- The repository root is now one portable Agent Plugin (`plugin.json`, Agent Plugins 1.0.0) with one canonical skill, `skills/rule-audit/SKILL.md`. `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json` both point at the root, and Gemini CLI discovers the same skill through `gemini-extension.json`; no host carries its own copy. The Codex skill moved from `integrations/codex/skills/audit/` (so `$rule-audit:audit` is now `$rule-audit:rule-audit`), the Claude Code manifest moved to `.claude-plugin/plugin.json` and adds `/rule-audit:audit` by path, and `CLAUDE.md` moved to `.claude/CLAUDE.md` so `claude plugin validate --strict` passes on the root. The skill falls back to `uvx --from rule-audit==0.4.0` when no `rule-audit` is installed. Plugin and marketplace names are unchanged; no runtime code changed.
+- The repository root is one portable Agent Plugin (`plugin.json`, Agent Plugins 1.0.0) with one canonical skill, `skills/rule-audit/SKILL.md`. The root, Claude Code, Gemini CLI, and Hermes Agent manifests now identify the semantic `0.5.0` boundary, and the skill's fallback is pinned to `uvx --from rule-audit==0.5.0`. Gemini release guidance uses the immutable `v0.5.0` ref; no runtime detection logic changed.
 
 ## [0.4.0] — 2026-09-08
 
@@ -128,7 +130,8 @@ Initial public release. Pure Python static analyzer for AI system prompts. Zero 
 - Single-document only (no operator + user + tool-result multi-context).
 - English only.
 
-[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/hermes-labs-ai/rule-audit/compare/v0.2.0...v0.3.0

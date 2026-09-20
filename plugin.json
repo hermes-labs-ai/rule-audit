@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "rule-audit",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "On-demand static analysis of AI system prompts: audit a prompt file for contradictions, coverage gaps, priority ambiguities and meta-paradoxes, locally and offline.",
   "author": {
     "name": "Hermes Labs",
