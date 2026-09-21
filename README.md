@@ -2,6 +2,10 @@
 
 **rule-audit is a static analyzer for AI system prompts: it parses a prompt into normative rules and reports logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absolute-rule edge cases — without calling an LLM.**
 
+rule-audit is developed by [Hermes Labs](https://hermes-labs.ai).
+
+Hermes Labs studies failure modes in agent and LLM systems, develops open-source tools that treat language as part of the runtime, and works with teams to remediate reliability failures in production.
+
 It runs as a pre-commit hook that audits agent rules and prompts — the AI
 system prompts and agent instructions (`CLAUDE.md`, `AGENTS.md`, `SOUL.md`)
 that steer a coding agent — before they're committed. See
@@ -11,8 +15,6 @@ that steer a coding agent — before they're committed. See
 [![PyPI](https://img.shields.io/pypi/v/rule-audit.svg)](https://pypi.org/project/rule-audit/)
 [![Python](https://img.shields.io/pypi/pyversions/rule-audit.svg)](https://pypi.org/project/rule-audit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-Part of the [Hermes Labs reliability stack](https://github.com/hermes-labs-ai).
 
 ---
 
@@ -392,7 +394,7 @@ python -m rule_audit --file your_prompt.txt --verbose
 
 ---
 
-## Part of the Hermes Labs toolkit — see also:
+## More from Hermes Labs
 - [lintlang](https://github.com/hermes-labs-ai/lintlang) — Static analysis for AI agent tool descriptions and workflows.
 - [little-canary](https://github.com/hermes-labs-ai/little-canary) — Prompt injection detection through a powerless sacrificial model.
 - [fidelis](https://github.com/hermes-labs-ai/fidelis) — Semantic memory for long-running agents with local retrieval.
@@ -400,18 +402,10 @@ python -m rule_audit --file your_prompt.txt --verbose
 - [zer0dex](https://github.com/hermes-labs-ai/zer0dex) — Local agent recall without burdening the context window.
 - [claude-plugins marketplace](https://github.com/hermes-labs-ai/claude-plugins) — Plugin system for Claude Code extensibility.
 
+Browse the [open-source catalog](https://hermes-labs.ai/open-source) or contact [roli@hermes-labs.ai](mailto:roli@hermes-labs.ai).
+
 ## License
 
 MIT — see [LICENSE](LICENSE). © Hermes Labs 2026.
 
----
-
-## About Hermes Labs
-
-[Hermes Labs](https://hermes-labs.ai) is an AI reliability engineering studio for product and engineering teams shipping production agents and LLM applications. We find the structural AI failures standard evals miss, then harden retrieval, memory, agents, and the language layers around production AI systems with runtime controls and defensible evidence.
-
-Browse the [open-source catalog](https://hermes-labs.ai/open-source) or contact [roli@hermes-labs.ai](mailto:roli@hermes-labs.ai).
-
 Not affiliated with NousResearch, Teknium, the Nous-Hermes LLM line, or any unrelated `hermes-*` project.
-
-Built by [Hermes Labs](https://hermes-labs.ai) · [@hermes-labs-ai](https://github.com/hermes-labs-ai)
