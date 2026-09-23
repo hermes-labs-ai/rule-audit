@@ -1,0 +1,35 @@
+name: Rule Audit
+description: Audit system-prompt files for logical contradictions and rule-structure issues
+author: Hermes Labs
+branding:
+  icon: check-circle
+  color: purple
+inputs:
+  path:
+    description: Recursive glob for prompt or agent-instruction files to audit
+    required: true
+  fail-on-high-risk:
+    description: Fail the step when any audited file has HIGH or CRITICAL risk
+    required: false
+    default: "true"
+outputs:
+  files-scanned:
+    description: Number of files audited
+    value: ${{ steps.audit.outputs.files-scanned }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install Rule Audit
+      shell: bash
+      run: python -m pip install --disable-pip-version-check "rule-audit==0.5.0"
+    - name: Audit prompt files
+      id: audit
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FAIL_ON_HIGH_RISK: ${{ inputs.fail-on-high-risk }}
+      run: python "${{ github.action_path }}/.github/scripts/rule-audit-action.py"
