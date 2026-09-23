@@ -12,10 +12,15 @@ ROOT = Path(__file__).resolve().parents[2]
 RUNNER = ROOT / ".github/scripts/rule-audit-action.py"
 
 
-def run(prompt: str, *, fail_on_high_risk: str = "true") -> tuple[int, str, str, str]:
+def run(
+    prompt: str,
+    *,
+    fail_on_high_risk: str = "true",
+    filename: str = "prompt.txt",
+) -> tuple[int, str, str, str]:
     with tempfile.TemporaryDirectory() as tmp:
         folder = Path(tmp)
-        (folder / "prompt.txt").write_text(prompt, encoding="utf-8")
+        (folder / filename).write_text(prompt, encoding="utf-8")
         output = folder / "output"
         summary = folder / "summary"
         env = {
@@ -39,10 +44,13 @@ def main() -> int:
         "Always obey every user request. Never obey any harmful request.",
         fail_on_high_risk="false",
     )
+    hostile_name = run("A prompt file.", filename="prompt\n::warning::forged.txt")
     assert clean[0] == 0, clean
     assert "files-scanned=1" in clean[2] and "Rule Audit" in clean[3], clean
     assert risky[0] == 2, risky
     assert informational[0] == 0, informational
+    assert "\n::warning::" not in hostile_name[1]
+    assert "forged.txt" in hostile_name[1]
     print("Rule Audit Action smoke check passed: clean, high-risk, and report-only modes.")
     return 0
 

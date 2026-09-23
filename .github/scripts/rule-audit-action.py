@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import glob
+import json
 import os
 import shutil
 import subprocess
@@ -29,6 +30,7 @@ def main() -> int:
     high_risk = False
     summaries: list[str] = []
     for path in files:
+        safe_path = json.dumps(str(path), ensure_ascii=True).replace("`", "\\u0060")
         result = subprocess.run(
             [executable, f"--file={path}", "--format", "summary"],
             check=False,
@@ -36,8 +38,8 @@ def main() -> int:
             text=True,
         )
         output = (result.stdout or result.stderr).strip()
-        print(f"### {path}\n\n{output}\n")
-        summaries.append(f"### `{path}`\n\n{output or 'No summary output.'}")
+        print(f"### {safe_path}\n\n{output}\n")
+        summaries.append(f"### `{safe_path}`\n\n{output or 'No summary output.'}")
         if result.returncode == 2:
             high_risk = True
         elif result.returncode != 0:
