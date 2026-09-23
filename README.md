@@ -108,7 +108,7 @@ pre-commit run rule-audit --all-files
 
 The hook checks Markdown and text files under `prompt/` or `prompts/`, plus conventional system, developer, and agent prompt/instruction filenames. It reports every matched file and preserves the CLI exit codes above. Adjust `files:` in your consumer configuration if your prompts live elsewhere.
 
-### Agent plugin: Claude Code, Codex, Gemini CLI
+### Agent plugin: Claude Code, Codex, Gemini CLI, GitHub Copilot CLI
 
 The repository root is one portable [Agent Plugin](https://agent-plugins.org)
 (`plugin.json`, Agent Plugins 1.0.0) that ships one skill,
@@ -120,6 +120,7 @@ it with its own native command; none of them gets a separate copy of the skill.
 | Claude Code | `claude plugin marketplace add hermes-labs-ai/rule-audit`<br>`claude plugin install rule-audit@rule-audit` | `claude plugin list` |
 | OpenAI Codex CLI | `codex plugin marketplace add hermes-labs-ai/rule-audit`<br>`codex plugin add rule-audit@rule-audit` | `codex plugin list` |
 | Gemini CLI | `gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref v0.5.0` | `gemini skills list` |
+| GitHub Copilot CLI | `copilot plugin install hermes-labs-ai/rule-audit` | `copilot plugin list`<br>`copilot skill list` |
 
 What each host reads:
 
@@ -130,6 +131,8 @@ What each host reads:
 - Gemini CLI reads `gemini-extension.json` and discovers the skill under
   `skills/`. Pin `--ref v0.5.0` for the immutable native-plugin boundary; use
   `main` only when intentionally testing unreleased development changes.
+- GitHub Copilot CLI reads the root `plugin.json` and discovers the skill under
+  `skills/`.
 
 The skill runs the bundled adapter next to it against an installed
 `rule-audit`, or, if none is installed, under `uvx --from rule-audit==0.5.0`.
@@ -230,6 +233,31 @@ See [`integrations/codex/README.md`](integrations/codex/README.md) for install,
 disable and uninstall, for what an installed skill costs on every turn, and for
 the host-specific details — why the wrapper, rather than the skill text, owns
 every guarantee.
+
+### GitHub Copilot CLI
+
+Install the repository's Agent Plugin directly, then check that its skill is
+enabled:
+
+```bash
+copilot plugin install hermes-labs-ai/rule-audit
+copilot plugin list
+copilot skill list
+```
+
+Copilot CLI currently warns that direct repository installs are deprecated, but
+the command works. In a Copilot session, name a system-prompt file explicitly:
+
+```
+Use the /rule-audit skill to audit prompts/support_agent.md
+```
+
+The plugin installs the skill, not the analyzer runtime. Running an audit needs
+Python 3.9+ and a compatible `rule-audit` installation (for example,
+`pipx install rule-audit==0.5.0`); the skill documents a pinned `uvx` fallback.
+Use it for system-prompt logic. [LintLang](https://github.com/hermes-labs-ai/lintlang)
+covers the broader structure of agent configs and tool descriptions. The skill
+runs on demand, and a risk label is a heuristic finding, not proof of an exploit.
 
 ### Machine-readable result envelope
 
