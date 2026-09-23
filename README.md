@@ -1,20 +1,24 @@
-# rule-audit
+<div align="center">
+
+<h1>rule-audit</h1>
 
 **rule-audit is a static analyzer for AI system prompts: it parses a prompt into normative rules and reports logical contradictions, coverage gaps, priority ambiguities, meta-rule paradoxes, and absolute-rule edge cases — without calling an LLM.**
 
 rule-audit is developed by [Hermes Labs](https://hermes-labs.ai).
 
-Hermes Labs studies failure modes in agent and LLM systems, develops open-source tools that treat language as part of the runtime, and works with teams to remediate reliability failures in production.
-
-It runs as a pre-commit hook that audits agent rules and prompts — the AI
-system prompts and agent instructions (`CLAUDE.md`, `AGENTS.md`, `SOUL.md`)
-that steer a coding agent — before they're committed. See
-[Pre-commit](#pre-commit) below.
+Hermes Labs is an agentic infrastructure company building the reliability layer for autonomous systems.
 
 [![CI](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/rule-audit.svg)](https://pypi.org/project/rule-audit/)
 [![Python](https://img.shields.io/pypi/pyversions/rule-audit.svg)](https://pypi.org/project/rule-audit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+</div>
+
+It runs as a pre-commit hook that audits agent rules and prompts — the AI
+system prompts and agent instructions (`CLAUDE.md`, `AGENTS.md`, `SOUL.md`)
+that steer a coding agent — before they're committed. See
+[Pre-commit](#pre-commit) below.
 
 ---
 
