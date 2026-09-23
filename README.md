@@ -420,6 +420,33 @@ pytest --cov=rule_audit --cov-report=term-missing
 python -m rule_audit --file your_prompt.txt --verbose
 ```
 
+### GitHub Actions
+
+The composite [Rule Audit GitHub Action](action.yml) installs the published
+`rule-audit` CLI and audits files matching a recursive glob. It reports each
+file in the workflow log and job summary. HIGH or CRITICAL risk returns exit
+code `2` and fails the step by default; set `fail-on-high-risk: false` to
+collect reports without failing. It does not make a security certification or
+replace testing against a live model.
+
+```yaml
+name: Prompt analysis
+on: [pull_request]
+
+jobs:
+  rule-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hermes-labs-ai/rule-audit@v0.1.0
+        with:
+          path: "prompts/**/*.txt"
+```
+
+The caller must check out the repository before invoking the Action. The Action
+requires network access to install the pinned Rule Audit release from PyPI.
+The `files-scanned` output reports how many matching files were audited.
+
 ---
 
 ## More from Hermes Labs
