@@ -104,6 +104,10 @@ Shows: new contradictions introduced, old contradictions resolved, gap changes, 
 
 **Target:** Q1 2027
 
+> **Design sketch, not an installation guide.** The hostname, action name, and
+> version below are proposed destinations, not verified public services or
+> published integrations. See the [README](README.md) for currently supported use.
+
 ### SaaS API
 
 REST API hosted at `api.hermeslabs.io/rule-audit`:
