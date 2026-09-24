@@ -5,7 +5,7 @@
   "description": "Static analyzer for AI system prompts that detects logical contradictions, coverage gaps, priority ambiguities, and absolute-rule edge cases without LLM calls or network access.",
   "codeRepository": "https://github.com/hermes-labs-ai/rule-audit",
   "version": "0.5.0",
-  "license": "https://spdx.org/licenses/MIT",
+  "license": "https://spdx.org/licenses/Apache-2.0",
   "programmingLanguage": "Python",
   "runtimePlatform": "Python >=3.9",
   "identifier": [

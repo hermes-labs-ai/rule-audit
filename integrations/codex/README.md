@@ -255,4 +255,4 @@ Gemini CLI and Hermes Agent.
 
 ## Licence
 
-MIT, same as the rest of the repository.
+Apache-2.0, same as the rest of the repository.
