@@ -6,7 +6,7 @@
 
 rule-audit is, roughly, a linter for AI system prompts. Given a raw prompt string, it extracts normative rules, classifies their modality (MUST / MUST_NOT / SHOULD / MAY), scores absoluteness, and finds pairs that conflict. For each finding it renders a concrete example scenario with a suggested attack vector and mitigation — illustrative starting points for testing, not verified exploits. No API keys, no network, no LLM calls.
 
-Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
+Install: `pip install rule-audit`. Python 3.9+. Apache-2.0 licensed.
 
 ## Docs
 
@@ -36,7 +36,7 @@ Install: `pip install rule-audit`. Python 3.9+. MIT licensed.
 
 ## Optional
 
-- [LICENSE](LICENSE): MIT.
+- [LICENSE](LICENSE): Apache-2.0.
 - [SECURITY](SECURITY.md): Responsible disclosure — security@hermes-labs.ai.
 - [CITATION](CITATION.cff): How to cite.
 

@@ -17,7 +17,7 @@ name: rule-audit
 version: 0.5.0
 description: Audit a system prompt for contradictions, priority conflicts and coverage gaps
 author: Hermes Labs
-license: MIT
+license: Apache-2.0
 homepage: https://github.com/hermes-labs-ai/rule-audit
 # No `manifest_version`: absent means v1, which is supported forever.
 # Declaring 2 makes this plugin uninstallable on Hermes 0.21.0 — its loader

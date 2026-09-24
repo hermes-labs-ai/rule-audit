@@ -11,7 +11,7 @@ Hermes Labs is an agentic infrastructure company building the reliability layer 
 [![CI](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/rule-audit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/rule-audit.svg)](https://pypi.org/project/rule-audit/)
 [![Python](https://img.shields.io/pypi/pyversions/rule-audit.svg)](https://pypi.org/project/rule-audit/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 </div>
 
@@ -465,6 +465,6 @@ Browse the [open-source catalog](https://hermes-labs.ai/open-source) or contact 
 
 ## License
 
-MIT — see [LICENSE](LICENSE). © Hermes Labs 2026.
+Apache-2.0 — see [LICENSE](LICENSE). © Hermes Labs 2026.
 
 Not affiliated with NousResearch, Teknium, the Nous-Hermes LLM line, or any unrelated `hermes-*` project.

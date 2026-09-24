@@ -14,7 +14,7 @@
       "source": "./",
       "description": "On-demand static analysis of AI system prompts: audit a prompt file for contradictions, coverage gaps, priority ambiguities and meta-paradoxes, locally and offline.",
       "homepage": "https://github.com/hermes-labs-ai/rule-audit",
-      "license": "MIT",
+      "license": "Apache-2.0",
       "category": "development"
     }
   ]

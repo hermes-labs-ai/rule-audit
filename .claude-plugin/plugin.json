@@ -11,7 +11,7 @@
   },
   "homepage": "https://github.com/hermes-labs-ai/rule-audit",
   "repository": "https://github.com/hermes-labs-ai/rule-audit",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": ["prompt-engineering", "ai-safety", "static-analysis", "system-prompt", "audit", "developer-tools"],
   "commands": ["./integrations/claude-code/commands/audit.md"]
 }

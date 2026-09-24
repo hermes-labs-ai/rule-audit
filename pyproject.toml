@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,8 @@ name = "rule-audit"
 version = "0.5.0"
 description = "Detect logical contradictions, gaps, and edge-case scenarios in AI system prompts"
 readme = "README.md"
-license = { text = "MIT" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "Rolando Bosch", email = "roli@hermes-labs.ai" }
 ]
