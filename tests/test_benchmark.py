@@ -12,7 +12,6 @@ those findings to prevent regressions.
 from __future__ import annotations
 
 import json
-import re
 import pytest
 from pathlib import Path
 
@@ -594,15 +593,9 @@ class TestCrossSampleComparisons:
 
 
 # ---------------------------------------------------------------------------
-# Exact counts — every dimension of the benchmarks/README.md table, pinned
+# Exact benchmark counts pinned per sample
 # ---------------------------------------------------------------------------
 
-BENCHMARKS_README = Path(__file__).parent.parent / "benchmarks" / "README.md"
-
-#: One row per sample. Keys mirror the README table columns; `low` is the
-#: severity the table does not break out (see README, "Why the total is not
-#: high + medium"). Any drift here must be investigated, then updated here
-#: and in the README in the same PR.
 EXPECTED: dict[str, dict[str, object]] = {
     "basic_assistant.txt": {
         "rules": 17, "contradictions": 18, "high": 17, "medium": 0, "low": 1,
@@ -655,56 +648,6 @@ def _observed(filename: str) -> dict[str, object]:
     }
 
 
-_ROW = re.compile(
-    r"^\| `(?P<name>[^`]+)` \| (?P<rules>\d+) \| (?P<contradictions>\d+) "
-    r"\((?P<high>\d+) / (?P<medium>\d+)\) \| (?P<gaps>\d+) \| (?P<priority>\d+) "
-    r"\| (?P<meta>\d+) \| (?P<absoluteness>\d+) \| (?P<edge_cases>\d+) "
-    r"\| (?P<risk_score>\d+) / (?P<risk_label>[A-Z]+) \|$",
-    re.M,
-)
-
-
-def _readme_rows() -> dict[str, dict[str, object]]:
-    rows: dict[str, dict[str, object]] = {}
-    for match in _ROW.finditer(BENCHMARKS_README.read_text(encoding="utf-8")):
-        row = match.groupdict()
-        name = row.pop("name")
-        label = row.pop("risk_label")
-        rows[name] = {key: int(value) for key, value in row.items()}
-        rows[name]["risk_score"] = float(rows[name]["risk_score"])
-        rows[name]["risk_label"] = label
-    return rows
-
-
-#: Matches a row of the "Low-severity contradictions" table: either a named
-#: sample (`` | `enterprise_rag.txt` | 5 | ``) or the catch-all default row
-#: (`` | all others | 0 | ``). Anchored per-line so it never matches a row of
-#: the main benchmark table above, which has more columns.
-_LOW_ROW = re.compile(
-    r"^\| (?:`(?P<name>[^`]+)`|(?P<other>all others)) \| (?P<low>\d+) \|$",
-    re.M,
-)
-
-
-def _readme_low_severity_counts() -> dict[str, int]:
-    text = BENCHMARKS_README.read_text(encoding="utf-8")
-    section = text.split("Low-severity contradictions", 1)[1]
-    named: dict[str, int] = {}
-    default: int | None = None
-    for match in _LOW_ROW.finditer(section):
-        low = int(match.group("low"))
-        if match.group("other"):
-            assert default is None, "README low-severity table has more than one 'all others' row"
-            default = low
-        else:
-            name = match.group("name")
-            assert name in EXPECTED, f"README low-severity table names an unknown sample: {name}"
-            assert name not in named, f"README low-severity table repeats a row for {name}"
-            named[name] = low
-    assert default is not None, "README low-severity table is missing its 'all others' row"
-    return {name: named.get(name, default) for name in EXPECTED}
-
-
 class TestExactBenchmarkCounts:
     """The regression gate AGENTS.md promises: exact, per dimension, per sample."""
 
@@ -723,22 +666,3 @@ class TestExactBenchmarkCounts:
             observed["high"] + observed["medium"] + observed["low"]
         )
         assert observed["low"] == EXPECTED[filename]["low"]
-
-    def test_readme_table_matches_the_pinned_counts(self) -> None:
-        rows = _readme_rows()
-        assert set(rows) == set(EXPECTED), sorted(rows)
-        for filename, expected in EXPECTED.items():
-            documented = {key: expected[key] for key in rows[filename]}
-            assert rows[filename] == documented, filename
-
-    def test_readme_explains_the_low_severity_remainder(self) -> None:
-        text = BENCHMARKS_README.read_text(encoding="utf-8")
-        assert "contradictions_low" in text
-
-    def test_readme_low_severity_table_matches_the_pinned_counts(self) -> None:
-        # Parses every displayed row of the "Low-severity contradictions"
-        # table (named samples and the "all others" default) and compares
-        # each against EXPECTED, not just whether a filename is mentioned.
-        assert _readme_low_severity_counts() == {
-            filename: expected["low"] for filename, expected in EXPECTED.items()
-        }

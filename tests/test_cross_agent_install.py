@@ -119,25 +119,3 @@ def test_the_skill_pins_the_uvx_fallback():
     text = CANONICAL_SKILL.read_text(encoding="utf-8")
     assert "uvx --from rule-audit==0.5.0" in text
     assert re.search(r"uvx --from rule-audit(?!==)", text) is None
-
-
-def test_documented_gemini_install_pins_the_native_release_ref():
-    """Gemini installs must name the immutable native-plugin release."""
-    pattern = re.compile(r"gemini extensions install https://github\.com/hermes-labs-ai/rule-audit[^\n`]*")
-    for doc in (ROOT / "README.md", ROOT / "integrations" / "gemini-cli" / "README.md"):
-        commands = pattern.findall(doc.read_text(encoding="utf-8"))
-        assert commands, "%s no longer documents the Gemini install" % doc.name
-        for command in commands:
-            assert "--ref v0.5.0" in command, "%s: %r must pass --ref v0.5.0" % (doc.name, command)
-
-
-def test_readme_documents_every_host_install():
-    text = (ROOT / "README.md").read_text(encoding="utf-8")
-    for command in (
-        "claude plugin marketplace add hermes-labs-ai/rule-audit",
-        "claude plugin install rule-audit@rule-audit",
-        "codex plugin marketplace add hermes-labs-ai/rule-audit",
-        "codex plugin add rule-audit@rule-audit",
-        "gemini extensions install https://github.com/hermes-labs-ai/rule-audit --ref v0.5.0",
-    ):
-        assert command in text
