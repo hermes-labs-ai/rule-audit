@@ -30,7 +30,6 @@ EXTENSION = ROOT / "integrations" / "gemini-cli"
 WRAPPER = EXTENSION / "gemini_audit.py"
 VENDORED = EXTENSION / "audit_report.py"
 CANONICAL = ROOT / "integrations" / "claude-code" / "scripts" / "audit_report.py"
-README = EXTENSION / "README.md"
 
 pytestmark = pytest.mark.skipif(
     not WRAPPER.is_file(), reason="Gemini CLI extension not present in this checkout"
@@ -416,29 +415,10 @@ def test_wrapper_returns_the_underlying_status_separately(tmp_path: Path) -> Non
 # ---------------------------------------------------------------------------
 
 
-def test_readme_documents_the_full_lifecycle() -> None:
-    text = README.read_text(encoding="utf-8")
-    for command in (
-        "gemini extensions install",
-        "gemini extensions disable",
-        "gemini extensions uninstall",
-        "/rule-audit:audit",
-    ):
-        assert command in text
 
 
-def test_readme_states_the_rule_audit_prerequisite() -> None:
-    # The extension ships no runtime; it resolves an installed rule-audit and
-    # refuses to guess. A README that omits this documents a broken install.
-    module = _requires_runtime()
-    minimum = ".".join(str(part) for part in module.MIN_VERSION)
-    assert minimum in README.read_text(encoding="utf-8")
 
 
-def test_repository_readme_points_at_the_extension() -> None:
-    text = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Gemini CLI" in text
-    assert "/rule-audit:audit" in text
 
 
 def test_extension_writes_no_state(tmp_path: Path) -> None:

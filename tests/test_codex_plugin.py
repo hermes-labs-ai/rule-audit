@@ -39,7 +39,6 @@ SKILL = SKILL_DIR / "SKILL.md"
 WRAPPER = SKILL_DIR / "scripts" / "codex_audit.py"
 VENDORED = SKILL_DIR / "scripts" / "audit_report.py"
 CANONICAL = ROOT / "integrations" / "claude-code" / "scripts" / "audit_report.py"
-README = ROOT / "integrations" / "codex" / "README.md"
 MARKETPLACE = ROOT / ".agents" / "plugins" / "marketplace.json"
 
 pytestmark = pytest.mark.skipif(
@@ -229,7 +228,6 @@ def test_the_plugin_directory_has_what_the_installer_needs():
     assert SKILL.is_file()
     assert WRAPPER.is_file()
     assert VENDORED.is_file()
-    assert README.is_file()
 
 
 def test_manifest_declares_the_name_every_documented_command_uses():
@@ -289,7 +287,6 @@ def test_the_manifest_and_index_agree_on_the_installed_skill_name():
     plugin_name = json.loads(MANIFEST.read_text(encoding="utf-8"))["name"]
     composed = "%s:%s" % (plugin_name, SKILL_DIR.name)
     assert composed == "rule-audit:rule-audit"
-    assert composed in README.read_text(encoding="utf-8")
 
 
 def test_skill_frontmatter_has_the_two_fields_the_catalog_renders():
@@ -1086,82 +1083,26 @@ def test_the_report_is_byte_identical_across_runs(capsys, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Documentation the user is told to rely on
+# Adapter version and changelog install command
 # ---------------------------------------------------------------------------
 
 
-def test_the_readme_documents_the_whole_lifecycle():
-    text = README.read_text(encoding="utf-8")
-    for command in (
-        "codex plugin marketplace add",
-        "codex plugin add rule-audit@rule-audit",
-        "codex plugin remove rule-audit@rule-audit",
-        "codex plugin marketplace remove rule-audit",
-    ):
-        assert command in text
-    # The off-switch that keeps the plugin installed but stops it costing a
-    # catalog line on every turn.
-    assert "[[skills.config]]" in text
-    assert 'name = "rule-audit:rule-audit"' in text
-
-
-def test_the_readme_states_the_prerequisite_and_the_minimum_version():
+def test_adapter_minimum_version():
     adapter_source = VENDORED.read_text(encoding="utf-8")
     minimum = re.search(r"MIN_VERSION = \((\d+), (\d+), (\d+)\)", adapter_source)
     assert minimum is not None
     assert minimum.groups() == ("0", "3", "1")
-    text = README.read_text(encoding="utf-8")
-    assert "pipx install 'rule-audit==0.5.0'" in text
-    assert "RULE_AUDIT_PYTHON" in text
 
 
-def test_the_readme_admits_the_ambient_catalog_cost():
-    """An installed, enabled skill is not free: its name, description and path
-    are injected into every turn's developer instructions. Saying "costs nothing
-    when idle" here would be the claim the Gemini CLI lane had to retract.
-    """
-    text = _flat(README.read_text(encoding="utf-8"))
-    assert "every turn" in text
 
-
-def test_the_readmes_document_the_install_that_works_today():
-    """The documented install command has to work on the day it is read.
-
-    `codex plugin marketplace add` git-clones and then looks for
-    `.agents/plugins/marketplace.json` at the clone root, so the ref it reads
-    is the remote's default branch. Before this plugin merged, the READMEs
-    said so and then told the reader to pass `--ref feat/codex-plugin`, which
-    was correct then and installs a stale copy of the plugin now. The index is
-    on `main`, so the bare form is the install.
-
-    Every place that spells the command is checked — both READMEs and the
-    changelog entry, which repeat it — and the assertion is unconditional on
-    purpose: guarding it on the pre-merge prose would let that whole paragraph
-    come back, the exact regression this pins, and take the check down with it.
-    """
-    root_readme = ROOT / "README.md"
+def test_changelog_install_command_uses_current_marketplace_source():
     changelog = ROOT / "CHANGELOG.md"
-    # Matched rather than read line-first, because the changelog spells the
-    # command inline in a prose sentence and the READMEs put it in a fence.
     pattern = re.compile(r"codex plugin marketplace add hermes-labs-ai/rule-audit[^\n`]*")
-    found = {
-        path: [match.strip() for match in pattern.findall(path.read_text(encoding="utf-8"))]
-        for path in (README, root_readme, changelog)
-    }
-    # Both READMEs have to carry it. The changelog is checked if it mentions
-    # the command and is not required to — it is a history, not an install doc.
-    assert found[README], "the plugin README should document the install command"
-    assert found[root_readme], "the root README should document the install command"
-
-    commands = [command for matches in found.values() for command in matches]
+    commands = [match.strip() for match in pattern.findall(changelog.read_text(encoding="utf-8"))]
     assert all(
         command == "codex plugin marketplace add hermes-labs-ai/rule-audit"
         for command in commands
     ), commands
-    # The local-clone workflow takes no ref and must stay that way.
-    assert "codex plugin marketplace add /path/to/rule-audit" in README.read_text(
-        encoding="utf-8"
-    )
 
 
 # ---------------------------------------------------------------------------

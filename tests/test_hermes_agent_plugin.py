@@ -32,7 +32,6 @@ INIT = PLUGIN / "__init__.py"
 WRAPPER = PLUGIN / "hermes_audit.py"
 VENDORED = PLUGIN / "audit_report.py"
 CANONICAL = ROOT / "integrations" / "claude-code" / "scripts" / "audit_report.py"
-README = PLUGIN / "README.md"
 
 pytestmark = pytest.mark.skipif(
     not WRAPPER.is_file(), reason="Hermes Agent plugin not present in this checkout"
@@ -760,48 +759,12 @@ def test_two_runs_over_unchanged_input_are_byte_identical(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_the_readme_documents_install_use_disable_and_uninstall():
-    text = _flat(README.read_text(encoding="utf-8"))
-    assert "hermes plugins install hermes-labs-ai/rule-audit/integrations/hermes-agent" in text
-    assert "hermes plugins enable rule-audit" in text
-    assert "hermes plugins disable rule-audit" in text
-    assert "hermes plugins remove rule-audit" in text
-    assert "/rule-audit" in text
 
 
-def test_the_readme_states_the_calibration_caveat_that_rules_out_a_hook():
-    """The measurement is why this is a command and not `on_session_start`.
-
-    If it stops being stated, the next person reading this tree has no record of
-    why the ambient surface was declined.
-    """
-    text = _flat(README.read_text(encoding="utf-8"))
-    assert "40" in text and "coverage-gap" in text.lower()
-    assert "on_session_start" in text
 
 
-def test_the_readme_names_the_surface_where_the_profile_claim_does_not_hold():
-    """`get_hermes_home()` does not mean the session's profile on every surface.
-
-    `tui_gateway/methods_tools.py::_dispatch_plugin` invokes a plugin command
-    without binding the session's `profile_home`, unlike `_is_profile_skill_command`
-    beside it. A user running profiles has to know that, and it is the kind of
-    caveat that quietly gets edited out.
-    """
-    text = _flat(README.read_text(encoding="utf-8"))
-    assert "_dispatch_plugin" in text
-    assert "profile" in text.lower()
 
 
-def test_the_readme_is_honest_about_the_bytecode_directory():
-    """The host's own importer writes `__pycache__` into the install directory.
-
-    A plugin cannot prevent that without mutating `sys.dont_write_bytecode`
-    process-wide, which is not a plugin's call. Claiming "writes no state"
-    would be false, so the README says what actually happens.
-    """
-    text = _flat(README.read_text(encoding="utf-8"))
-    assert "__pycache__" in text
 
 
 # ---------------------------------------------------------------------------

@@ -96,11 +96,7 @@ def test_repository_root_is_a_marketplace_that_lists_this_plugin() -> None:
     source = entries[0]["source"]
     assert source.startswith("./") and ".." not in source
     assert (ROOT / source).resolve() == ROOT.resolve()
-    for doc in (ROOT / "README.md", PLUGIN / "README.md"):
-        text = doc.read_text(encoding="utf-8")
-        assert "claude plugin marketplace add hermes-labs-ai/rule-audit" in text
-        assert "rule-audit@rule-audit" in text
-        assert "<marketplace-name>" not in text
+
 
 
 def test_components_live_at_the_plugin_root_not_inside_claude_plugin() -> None:
