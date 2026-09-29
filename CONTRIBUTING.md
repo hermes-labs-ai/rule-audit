@@ -8,7 +8,7 @@ By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 1. An issue exists describing the bug or feature, or you're fixing something trivial (typo, broken link).
 2. You've read `.claude/CLAUDE.md` (project conventions), `SPEC.md` (detector algorithms), and `AGENTS.md` (public API, extension points).
-3. Tests pass locally: `pytest -q` → 174 tests (or more if you added some).
+3. Tests pass locally: `pytest -q` passes (the suite has hundreds of tests; add yours to it).
 4. Your change is scoped. One contribution = one concern.
 
 ## Dev setup
